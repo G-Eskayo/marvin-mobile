@@ -85,16 +85,36 @@ final class StubProtocol: URLProtocol, @unchecked Sendable {
         #expect(rows[0].failed == false)
     }
 
+    // Shape of ~/.claude/logs/health-status.json as health_checks.py writes it (2026-10-08).
     @Test func healthDecodesOverallAndChecks() async throws {
         StubProtocol.handler = { _ in (200, Data("""
-            {"ok":true,"data":{"generated_at":"2026-10-08T15:00:00Z","overall":"amber","coverage":null,"anomaly":null,
-            "checks":[{"name":"code-sync","status":"red","detail":"conflict in ~/.agents"}]}}
+            {"ok":true,"data":{"generated_at":"2026-10-08T17:54:00Z","overall":"red","coverage":null,"anomaly":null,
+            "checks":[{"id":"cron:code-sync-push","label":"Cron job: code-sync-push","severity":"red",
+            "detail":"2 failure indicator(s) since last check","checked_at":"2026-10-08T17:54:00Z","value":null},
+            {"id":"token:oauth-token","label":"Auth token: oauth-token","severity":"green","detail":"present"}]}}
             """.utf8)) }
         let health = try await client.health()
-        #expect(health.overall == "amber")
-        #expect(health.checks.first?.name == "code-sync")
-        #expect(health.checks.first?.status == "red")
-        #expect(health.checks.first?.detail == "conflict in ~/.agents")
+        #expect(health.overall == .red)
+        #expect(health.checks.first?.label == "Cron job: code-sync-push")
+        #expect(health.checks.first?.severity == .red)
+        #expect(health.checks.first?.detail == "2 failure indicator(s) since last check")
+        #expect(health.count(.red) == 1)
+        #expect(health.count(.green) == 1)
+    }
+
+    @Test func healthWithNoRunYetIsGrey() async throws {
+        // health.js's EMPTY_STATUS when the monitor has never written a file.
+        StubProtocol.handler = { _ in (200, Data(#"{"ok":true,"data":{"generated_at":null,"overall":"grey","coverage":null,"anomaly":null,"checks":[]}}"#.utf8)) }
+        let health = try await client.health()
+        #expect(health.overall == .grey)
+        #expect(health.checks.isEmpty)
+    }
+
+    @Test func anUnknownSeverityDecodesAsGreyRatherThanFailing() async throws {
+        StubProtocol.handler = { _ in (200, Data(#"{"ok":true,"data":{"overall":"purple","checks":[{"id":"x","label":"X","severity":"purple"}]}}"#.utf8)) }
+        let health = try await client.health()
+        #expect(health.overall == .grey)
+        #expect(health.checks[0].severity == .grey)
     }
 
     @Test func aBackendErrorSurfacesItsMessage() async {

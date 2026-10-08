@@ -8,6 +8,16 @@ public enum BackendError: Error, Equatable {
     case badResponse
 }
 
+extension BackendError: LocalizedError {
+    public var errorDescription: String? {
+        switch self {
+        case .server(let message): "MARVIN couldn't answer: \(message)"
+        case .notAllowlisted: "This device isn't on MARVIN's allowlist."
+        case .badResponse: "MARVIN sent a reply the app didn't understand."
+        }
+    }
+}
+
 /// Talks to the mobile backend over Tailscale (marvin/dashboard/mobile-backend).
 /// Read-only calls plus Chat; side-effecting calls arrive with the Face ID gate.
 public struct BackendClient: Sendable {

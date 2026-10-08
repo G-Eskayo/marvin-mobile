@@ -24,17 +24,31 @@ public struct ActivityItem: Decodable, Identifiable, Equatable, Sendable {
     }
 }
 
-/// `GET /health`: the health monitor's latest run (ADR 0033).
+/// The health monitor's traffic light. `grey` = no data yet, or a value this app doesn't know.
+public enum Severity: String, Decodable, Sendable, CaseIterable {
+    case red, yellow, green, grey
+
+    public init(from decoder: Decoder) throws {
+        let raw = try decoder.singleValueContainer().decode(String.self)
+        self = Severity(rawValue: raw) ?? .grey
+    }
+}
+
+/// `GET /health`: the health monitor's latest run (ADR 0033, written by health_checks.py).
 public struct HealthStatus: Decodable, Equatable, Sendable {
     public let generatedAt: String?
-    public let overall: String
+    public let overall: Severity
     public let checks: [Check]
 
     public struct Check: Decodable, Equatable, Identifiable, Sendable {
-        public let name: String
-        public let status: String
+        public let id: String
+        public let label: String
+        public let severity: Severity
         public let detail: String?
-        public var id: String { name }
+    }
+
+    public func count(_ severity: Severity) -> Int {
+        checks.count { $0.severity == severity }
     }
 
     enum CodingKeys: String, CodingKey {
@@ -46,8 +60,10 @@ public struct HealthStatus: Decodable, Equatable, Sendable {
 /// `GET /boards`: one project board.
 public struct Board: Decodable, Equatable, Identifiable, Sendable {
     public let repo: String
-    public let label: String?
+    public let name: String?
     public let due: String?
+    public let dueHard: Bool?
+    public let status: String?
     public var id: String { repo }
 }
 

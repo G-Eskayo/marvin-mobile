@@ -8,57 +8,69 @@ struct ThreadView: View {
     @FocusState private var composing: Bool
 
     var body: some View {
-        NavigationStack {
+        Page(title: "MARVIN") {
             VStack(spacing: 0) {
-                ConnectionBanner()
                 ScrollViewReader { proxy in
                     ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 12) {
-                            if let error = model.threadError, model.messages.isEmpty {
-                                Text(error).font(.footnote).foregroundStyle(.secondary)
+                        LazyVStack(alignment: .leading, spacing: 10) {
+                            // The banner already explains offline / not-allowlisted; don't say it twice.
+                            if let error = model.threadError, model.messages.isEmpty, model.connection.status == .online {
+                                Text(error).font(.footnote).foregroundStyle(Theme.muted)
                             }
                             ForEach(model.messages) { message in
                                 Bubble(text: message.text, isUser: message.role == .user)
                             }
                             if let reply = model.streaming {
-                                Bubble(text: reply.text.isEmpty ? "Thinking…" : reply.text, isUser: false)
-                                    .opacity(0.7)
+                                if reply.text.isEmpty {
+                                    TypingIndicator()
+                                } else {
+                                    Bubble(text: reply.text, isUser: false)
+                                }
                             }
                             Color.clear.frame(height: 1).id("bottom")
                         }
                         .padding()
                     }
+                    .scrollDismissesKeyboard(.interactively)
                     .defaultScrollAnchor(.bottom)
                     .onChange(of: model.messages.count) { proxy.scrollTo("bottom") }
                     .onChange(of: model.streaming?.text) { proxy.scrollTo("bottom") }
                 }
                 composer
             }
-            .navigationTitle("MARVIN")
-            .navigationBarTitleDisplayMode(.inline)
-            .task { await model.loadThread() }
+            .task {
+                await model.loadThread()
+                // `-demoPrompt "<text>"` (demo mode only): send on launch, to screenshot the typing indicator.
+                if model.isDemo, let prompt = UserDefaults.standard.string(forKey: "demoPrompt") {
+                    await model.send(prompt)
+                }
+            }
             .refreshable { await model.loadThread() }
         }
     }
 
     private var composer: some View {
-        HStack(alignment: .bottom) {
+        HStack(alignment: .bottom, spacing: 8) {
             TextField("Message MARVIN", text: $draft, axis: .vertical)
                 .lineLimit(1...5)
                 .focused($composing)
-                .padding(10)
-                .background(.fill.tertiary, in: .rect(cornerRadius: 18))
+                .padding(.horizontal, 14).padding(.vertical, 10)
+                .background(Theme.card, in: .rect(cornerRadius: 20))
+                .overlay(RoundedRectangle(cornerRadius: 20).stroke(Theme.border))
             Button {
                 let text = draft
                 draft = ""
                 Task { await model.send(text) }
             } label: {
-                Image(systemName: "arrow.up.circle.fill").font(.system(size: 32))
+                Image(systemName: "arrow.up.circle.fill").font(.system(size: 34))
             }
+            .tint(Theme.selected)
             .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || model.isSending)
+            .accessibilityLabel("Send")
         }
         .padding(.horizontal)
         .padding(.vertical, 8)
+        .background(Theme.background)
     }
 }
 
@@ -71,9 +83,9 @@ private struct Bubble: View {
             if isUser { Spacer(minLength: 48) }
             Text(text)
                 .textSelection(.enabled)
-                .padding(12)
-                .foregroundStyle(isUser ? .white : .primary)
-                .background(isUser ? AnyShapeStyle(.tint) : AnyShapeStyle(.fill.secondary), in: .rect(cornerRadius: 18))
+                .padding(.horizontal, 14).padding(.vertical, 10)
+                .foregroundStyle(.white)
+                .background(isUser ? Theme.selected : Theme.raised, in: .rect(cornerRadius: 18))
             if !isUser { Spacer(minLength: 48) }
         }
     }
