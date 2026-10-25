@@ -15,14 +15,25 @@ public enum DemoBackend {
     }
 
     static func response(for request: URLRequest) -> (Int, String) {
-        switch (request.httpMethod ?? "GET", request.url?.path ?? "") {
-        case (_, "/status"): (200, #"{"ok":true,"status":"up","uptimeSeconds":4210,"version":"1.0.0"}"#)
-        case (_, "/activity"): (200, activity)
-        case (_, "/health"): (200, health)
-        case (_, "/boards"): (200, boards)
-        case (_, "/thread"): (200, thread)
-        case ("POST", "/chat"): (200, chat)
-        default: (404, #"{"ok":false,"error":"not in demo data"}"#)
+        let path = request.url?.path ?? ""
+        let query = URLComponents(url: request.url ?? URL(string: "http://x")!, resolvingAgainstBaseURL: true)?.queryItems ?? []
+
+        switch (request.httpMethod ?? "GET", path) {
+        case (_, "/status"): return (200, #"{"ok":true,"status":"up","uptimeSeconds":4210,"version":"1.0.0"}"#)
+        case (_, "/activity"): return (200, activity)
+        case (_, "/health"): return (200, health)
+        case (_, "/boards"): return (200, boards)
+        case (_, "/docs/repos"): return (200, docsRepos)
+        case (_, "/docs/tree"):
+            let id = query.first(where: { $0.name == "id" })?.value ?? "unknown"
+            return (200, docsTreeFor(id: id))
+        case (_, "/docs/content"):
+            let id = query.first(where: { $0.name == "id" })?.value ?? "marvin"
+            let path = query.first(where: { $0.name == "path" })?.value ?? "CONTEXT.md"
+            return (200, docsContentFor(id: id, path: path))
+        case (_, "/thread"): return (200, thread)
+        case ("POST", "/chat"): return (200, chat)
+        default: return (404, #"{"ok":false,"error":"not in demo data"}"#)
         }
     }
 
@@ -73,6 +84,66 @@ public enum DemoBackend {
     {"type":"result","text":"","sessionId":"demo","isError":false}
 
     """
+
+    static let docsRepos = "{\"ok\":true,\"data\":{\"repos\":[{\"id\":\"marvin\",\"name\":\"MARVIN\",\"kind\":\"project\",\"status\":\"active\"},{\"id\":\"clarity-captions\",\"name\":\"Clarity Captions\",\"kind\":\"project\",\"status\":\"active\"},{\"id\":\"marvin-mobile\",\"name\":\"MARVIN Mobile\",\"kind\":\"project\",\"status\":\"active\"}]}}"
+
+    static func docsTreeFor(id: String) -> String {
+        let tree: String
+        if id == "marvin" {
+            tree = #"""
+            {
+              "ok": true,
+              "data": {
+                "source": "github",
+                "dir": "docs",
+                "tree": [
+                  {
+                    "section": "Overview",
+                    "items": [
+                      {"path": "CONTEXT.md", "label": "Context and Status"},
+                      {"path": "docs/PRD.md", "label": "Product Requirements"}
+                    ]
+                  },
+                  {
+                    "section": "Architecture",
+                    "items": [
+                      {"path": "docs/adr/0001-example.md", "label": "ADR 0001: Example"}
+                    ]
+                  },
+                  {"path": "README.md", "label": "README"}
+                ]
+              }
+            }
+            """#
+        } else {
+            tree = #"""
+            {
+              "ok": true,
+              "data": {
+                "source": "github",
+                "dir": "docs",
+                "tree": [
+                  {"path": "README.md", "label": "README"}
+                ]
+              }
+            }
+            """#
+        }
+        return tree
+    }
+
+    static func docsContentFor(id: String, path: String) -> String {
+        let content: String
+        if path == "CONTEXT.md" {
+            content = #"# MARVIN Context\n\nMARVIN is a personal AI deployment platform over Tailscale.\n\n## Status\n\nActive development. Phase 1 shipped 2026-10-08.\n\n## Key Documents\n\n- PRD: Product requirements and design decisions\n- Architecture: System design and data flow"#
+        } else if path == "docs/PRD.md" {
+            content = #"# Product Requirements\n\n## Vision\n\nA personal intelligence layer over Tailscale.\n\n## Features\n\n1. Chat\n2. Activity monitor\n3. Health dashboard"#
+        } else {
+            content = #"# README\n\n## Getting Started\n\nSee CONTEXT.md for an overview."#
+        }
+        let escaped = content.replacingOccurrences(of: "\"", with: "\\\"").replacingOccurrences(of: "\n", with: "\\n")
+        return "{\"ok\":true,\"data\":\"\(escaped)\"}"
+    }
 }
 
 /// Serves `DemoBackend`'s fixtures. `/chat` is held back by `replyDelay` so the typing

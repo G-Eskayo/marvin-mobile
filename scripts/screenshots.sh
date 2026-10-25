@@ -36,4 +36,6 @@ shot 4-activity 4 -tab activity
 shot 5-health 4 -tab health
 shot 6-mr-review 3 -tab review
 shot 7-docs 3 -tab docs
+shot 8-docs-tree 3 -tab docs -docsRepo marvin
+shot 9-docs-content 3 -tab docs -docsRepo marvin -docsPath "CONTEXT.md"
 xcrun simctl terminate "$UDID" "$BUNDLE" >/dev/null 2>&1 || true

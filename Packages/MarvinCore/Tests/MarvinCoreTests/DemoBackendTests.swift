@@ -38,4 +38,14 @@ import Testing
         #expect(reply.error == nil)
         #expect(!reply.text.isEmpty)
     }
+
+    @Test func servesDocsWithRepositories() async throws {
+        let repos = try await client.docsRepos()
+        #expect(!repos.repos.isEmpty)
+        #expect(repos.repos.allSatisfy { !$0.name.isEmpty })
+        let tree = try await client.docsTree(id: repos.repos[0].id)
+        #expect(!tree.tree.isEmpty)
+        let content = try await client.docsContent(id: repos.repos[0].id, path: "CONTEXT.md")
+        #expect(!content.isEmpty)
+    }
 }

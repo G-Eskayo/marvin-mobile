@@ -45,6 +45,16 @@ public struct BackendClient: Sendable {
     public func activity() async throws -> [ActivityItem] { try await get("activity") }
     public func health() async throws -> HealthStatus { try await get("health") }
     public func boards() async throws -> [Board] { try await get("boards") }
+    public func docsRepos() async throws -> DocsRepos { try await get("docs/repos") }
+    public func docsTree(id: String) async throws -> DocTree {
+        try await get("docs/tree", query: [URLQueryItem(name: "id", value: id)])
+    }
+    public func docsContent(id: String, path: String) async throws -> DocContent {
+        try await get("docs/content", query: [
+            URLQueryItem(name: "id", value: id),
+            URLQueryItem(name: "path", value: path)
+        ])
+    }
 
     /// The Thread, oldest first (the backend pages newest first).
     public func thread(limit: Int = 50) async throws -> [ThreadMessage] {

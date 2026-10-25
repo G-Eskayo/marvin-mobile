@@ -87,3 +87,70 @@ public struct ThreadMessage: Decodable, Equatable, Identifiable, Sendable {
         self.ts = ts
     }
 }
+
+/// `GET /docs/repos`: one documentation repository.
+public struct DocRepo: Decodable, Equatable, Identifiable, Sendable {
+    public let id: String
+    public let name: String
+    public let kind: String
+    public let status: String
+}
+
+/// Array wrapper for `GET /docs/repos`.
+public struct DocsRepos: Decodable, Equatable, Sendable {
+    public let repos: [DocRepo]
+}
+
+/// One leaf node in a document tree (a document file).
+public struct DocLeaf: Decodable, Equatable, Identifiable, Sendable {
+    public let path: String
+    public let label: String
+    public var id: String { path }
+}
+
+/// One node in a document tree, either a group (section) or a leaf (document).
+public enum DocTreeItem: Decodable, Equatable, Identifiable, Sendable {
+    case section(name: String, items: [DocLeaf])
+    case leaf(DocLeaf)
+
+    public var id: String {
+        switch self {
+        case .section(let name, _): name
+        case .leaf(let leaf): leaf.id
+        }
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        if let section = try container.decodeIfPresent(String.self, forKey: .section) {
+            let items = try container.decode([DocLeaf].self, forKey: .items)
+            self = .section(name: section, items: items)
+        } else if let path = try container.decodeIfPresent(String.self, forKey: .path),
+                  let label = try container.decodeIfPresent(String.self, forKey: .label) {
+            let leaf = DocLeaf(path: path, label: label)
+            self = .leaf(leaf)
+        } else {
+            throw DecodingError.dataCorrupted(
+                DecodingError.Context(
+                    codingPath: decoder.codingPath,
+                    debugDescription: "DocTreeItem must have either (section + items) or (path + label)"
+                )
+            )
+        }
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case section, items, path, label
+    }
+}
+
+/// `GET /docs/tree?id=`: the tree structure for a documentation repository.
+public struct DocTree: Decodable, Equatable, Sendable {
+    public let source: String?
+    public let dir: String?
+    public let tree: [DocTreeItem]
+}
+
+/// `GET /docs/content?id=&path=`: raw markdown content for a document.
+public typealias DocContent = String

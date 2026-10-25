@@ -149,4 +149,82 @@ final class StubProtocol: URLProtocol, @unchecked Sendable {
         let body = try JSONSerialization.jsonObject(with: StubProtocol.lastBody ?? Data()) as? [String: String]
         #expect(body == ["message": "Good morning"])
     }
+
+    @Test func docsReposDecodesRepositoryList() async throws {
+        StubProtocol.handler = { _ in (200, Data("""
+            {"ok":true,"data":{"repos":[
+             {"id":"marvin","name":"MARVIN","kind":"project","status":"active"},
+             {"id":"clarity-captions","name":"Clarity Captions","kind":"project","status":"active"}
+            ]}}
+            """.utf8)) }
+        let repos = try await client.docsRepos()
+        #expect(repos.repos.count == 2)
+        #expect(repos.repos[0].id == "marvin")
+        #expect(repos.repos[0].name == "MARVIN")
+        #expect(repos.repos[1].id == "clarity-captions")
+    }
+
+    @Test func docsTreeDecodesWithGroupedSections() async throws {
+        StubProtocol.handler = { _ in (200, Data("""
+            {"ok":true,"data":{"source":"github","dir":"docs","tree":[
+             {"section":"Overview","items":[{"path":"CONTEXT.md","label":"Context"}]},
+             {"path":"README.md","label":"README"}
+            ]}}
+            """.utf8)) }
+        let tree = try await client.docsTree(id: "marvin")
+        #expect(tree.tree.count == 2)
+        if case .section(let name, let items) = tree.tree[0] {
+            #expect(name == "Overview")
+            #expect(items.count == 1)
+            #expect(items[0].path == "CONTEXT.md")
+        } else {
+            #expect(Bool(false), "Expected section at index 0")
+        }
+        if case .leaf(let leaf) = tree.tree[1] {
+            #expect(leaf.path == "README.md")
+        } else {
+            #expect(Bool(false), "Expected leaf at index 1")
+        }
+        #expect(StubProtocol.lastRequest?.url?.path == "/docs/tree")
+        #expect(StubProtocol.lastRequest?.url?.query?.contains("id=marvin") == true)
+    }
+
+    @Test func docsTreeEmptyHandling() async throws {
+        StubProtocol.handler = { _ in (200, Data("""
+            {"ok":true,"data":{"source":"github","dir":"docs","tree":[]}}
+            """.utf8)) }
+        let tree = try await client.docsTree(id: "empty-project")
+        #expect(tree.tree.isEmpty)
+    }
+
+    @Test func docsTreeMalformedNodeThrows() async throws {
+        StubProtocol.handler = { _ in (200, Data("""
+            {"ok":true,"data":{"source":"github","dir":"docs","tree":[
+             {"invalid":"neither section nor path"}
+            ]}}
+            """.utf8)) }
+        await #expect(throws: DecodingError.self) { try await client.docsTree(id: "bad") }
+    }
+
+    @Test func docsContentFetchesDocumentAsRawString() async throws {
+        StubProtocol.handler = { _ in (200, Data("""
+            {"ok":true,"data":"# MARVIN\\n\\nA personal AI platform."}
+            """.utf8)) }
+        let content = try await client.docsContent(id: "marvin", path: "CONTEXT.md")
+        #expect(content.contains("personal AI"))
+        #expect(StubProtocol.lastRequest?.url?.path == "/docs/content")
+        #expect(StubProtocol.lastRequest?.url?.query?.contains("id=marvin") == true)
+        #expect(StubProtocol.lastRequest?.url?.query?.contains("path=CONTEXT.md") == true)
+    }
+
+    @Test func docsContentWithSpecialCharactersInPath() async throws {
+        StubProtocol.handler = { _ in (200, Data("""
+            {"ok":true,"data":"Content"}
+            """.utf8)) }
+        let content = try await client.docsContent(id: "m", path: "docs/section with spaces & chars/file.md")
+        #expect(!content.isEmpty)
+        let components = URLComponents(url: StubProtocol.lastRequest!.url!, resolvingAgainstBaseURL: false)
+        let pathValue = components?.queryItems?.first { $0.name == "path" }?.value
+        #expect(pathValue == "docs/section with spaces & chars/file.md")
+    }
 }
