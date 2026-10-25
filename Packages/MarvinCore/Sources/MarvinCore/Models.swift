@@ -87,3 +87,71 @@ public struct ThreadMessage: Decodable, Equatable, Identifiable, Sendable {
         self.ts = ts
     }
 }
+
+/// One PR from `GET /mr/list`.
+public struct MrPr: Decodable, Identifiable, Equatable, Sendable {
+    public let id: String
+    public let url: String
+    public let title: String
+    public let number: Int
+    public let repo: String
+    public let author: String?
+    public let status: MrReviewTabStatus
+    public let createdAt: String?
+}
+
+/// Status of a PR in the review tab.
+public enum MrReviewTabStatus: String, Decodable, Sendable, CaseIterable {
+    case approved, pending, changesRequested
+
+    public init(from decoder: Decoder) throws {
+        let raw = try decoder.singleValueContainer().decode(String.self)
+        self = MrReviewTabStatus(rawValue: raw) ?? .pending
+    }
+}
+
+/// Response from `GET /mr/review-status`.
+public struct MrReviewStatus: Decodable, Equatable, Sendable {
+    public let openCount: Int
+    public let approvedCount: Int
+    public let changesRequestedCount: Int
+
+    enum CodingKeys: String, CodingKey {
+        case openCount = "open_count"
+        case approvedCount = "approved_count"
+        case changesRequestedCount = "changes_requested_count"
+    }
+}
+
+/// Context about a ticket linked to an MR from `GET /mr/ticket-context`.
+public struct MrTicketContext: Decodable, Equatable, Sendable {
+    public let number: Int
+    public let repo: String
+    public let title: String?
+    public let currentStage: String?
+    public let currentStatus: String?
+
+    enum CodingKeys: String, CodingKey {
+        case number, repo, title
+        case currentStage = "current_stage"
+        case currentStatus = "current_status"
+    }
+}
+
+/// Typealias for ticket info in detail views.
+public typealias TicketInfo = MrTicketContext
+
+/// Actions available for denying an MR.
+public enum DenyAction: String, Decodable, Sendable, CaseIterable {
+    case changesRequested, noDecision
+}
+
+/// Result of an approve or deny action.
+public struct MrActionResult: Decodable, Equatable, Sendable {
+    public let success: Bool
+    public let message: String?
+
+    enum CodingKeys: String, CodingKey {
+        case success, message
+    }
+}

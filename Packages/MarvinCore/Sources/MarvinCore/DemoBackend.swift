@@ -14,6 +14,11 @@ public enum DemoBackend {
         return BackendClient(baseURL: baseURL, session: URLSession(configuration: config))
     }
 
+    /// Demo authenticator for MR review (Face ID gate).
+    public static func authenticator() -> BiometricAuthenticator {
+        DemoAuthenticator.shared
+    }
+
     static func response(for request: URLRequest) -> (Int, String) {
         switch (request.httpMethod ?? "GET", request.url?.path ?? "") {
         case (_, "/status"): (200, #"{"ok":true,"status":"up","uptimeSeconds":4210,"version":"1.0.0"}"#)
@@ -22,6 +27,11 @@ public enum DemoBackend {
         case (_, "/boards"): (200, boards)
         case (_, "/thread"): (200, thread)
         case ("POST", "/chat"): (200, chat)
+        case (_, "/mr/list"): (200, mrList)
+        case (_, "/mr/review-status"): (200, mrReviewStatus)
+        case (_, "/mr/ticket-context"): (200, mrTicketContext)
+        case ("POST", "/mr/approve"): (200, mrApprove)
+        case ("POST", "/mr/deny"): (200, mrDeny)
         default: (404, #"{"ok":false,"error":"not in demo data"}"#)
         }
     }
@@ -72,6 +82,30 @@ public enum DemoBackend {
     {"type":"text","text":"Want me to open #199 on the Activity tab?"}
     {"type":"result","text":"","sessionId":"demo","isError":false}
 
+    """
+
+    static let mrList = """
+    {"ok":true,"data":[
+     {"id":"pr1","url":"https://github.com/G-Eskayo/marvin/pull/280","title":"MR review: read endpoints","number":280,"repo":"G-Eskayo/marvin","author":"claude","status":"pending","createdAt":"2026-10-08T12:00:00Z"},
+     {"id":"pr2","url":"https://github.com/G-Eskayo/marvin/pull/279","title":"Mobile backend: write actions","number":279,"repo":"G-Eskayo/marvin","author":"bot","status":"pending","createdAt":"2026-10-07T12:00:00Z"},
+     {"id":"pr3","url":"https://github.com/G-Eskayo/clarity-captions/pull/10","title":"Latency baseline and 10% budget","number":10,"repo":"G-Eskayo/clarity-captions","author":"claude","status":"approved","createdAt":"2026-10-06T12:00:00Z"}
+    ]}
+    """
+
+    static let mrReviewStatus = """
+    {"ok":true,"data":{"open_count":2,"approved_count":1,"changes_requested_count":0}}
+    """
+
+    static let mrTicketContext = """
+    {"ok":true,"data":{"number":272,"repo":"G-Eskayo/marvin","title":"Mobile backend: board, overview and MR read endpoints","current_stage":"executing","current_status":"running"}}
+    """
+
+    static let mrApprove = """
+    {"ok":true,"data":{"success":true,"message":"PR approved"}}
+    """
+
+    static let mrDeny = """
+    {"ok":true,"data":{"success":true,"message":"PR denied"}}
     """
 }
 

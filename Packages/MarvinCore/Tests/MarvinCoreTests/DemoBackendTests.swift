@@ -38,4 +38,29 @@ import Testing
         #expect(reply.error == nil)
         #expect(!reply.text.isEmpty)
     }
+
+    // 21. mrList() returns PRs with titles
+    @Test func mrListReturnsPRsWithTitlesNeverBareNumbers() async throws {
+        let prs = try await client.mrList()
+        #expect(prs.count == 3)
+        #expect(prs.allSatisfy { !($0.title ?? "").isEmpty })
+        #expect(prs[0].status == MrReviewTabStatus.pending)
+        #expect(prs[2].status == MrReviewTabStatus.approved)
+    }
+
+    // 22. mrReviewStatus() returns open and approved counts
+    @Test func mrReviewStatusReturnsValidCounts() async throws {
+        let status = try await client.mrReviewStatus()
+        #expect(status.openCount == 2)
+        #expect(status.approvedCount == 1)
+        #expect(status.changesRequestedCount == 0)
+    }
+
+    // 23. mrTicketContext() returns ticket info for a PR
+    @Test func mrTicketContextReturnsTicketInfo() async throws {
+        let ticket = try await client.mrTicketContext(ref: "pr280", repo: "G-Eskayo/marvin")
+        #expect(ticket.number == 272)
+        #expect(ticket.title == "Mobile backend: board, overview and MR read endpoints")
+        #expect(ticket.currentStage == "executing")
+    }
 }

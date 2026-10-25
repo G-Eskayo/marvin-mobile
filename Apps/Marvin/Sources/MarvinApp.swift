@@ -29,9 +29,9 @@ struct RootView: View {
             Tab("MARVIN", systemImage: "bubble.left.and.text.bubble.right", value: "marvin") { ThreadView() }
             Tab("Activity", systemImage: "list.bullet.rectangle", value: "activity") { ActivityView() }
             Tab("MR Review", systemImage: "arrow.triangle.pull", value: "review") {
-                ComingSoonView(title: "MR Review", ticket: "marvin-mobile#3",
-                               blurb: "Open pipeline PRs with their status, the ticket behind each, and approve or deny behind Face ID.")
+                MrReviewView()
             }
+            .badge(model.mrOpenCount)
             Tab("Health", systemImage: "heart.text.square", value: "health") { HealthView() }
                 .badge(model.redCheckCount)
             Tab("Docs", systemImage: "doc.text", value: "docs") {

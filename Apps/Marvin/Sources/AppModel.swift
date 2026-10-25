@@ -22,11 +22,21 @@ final class AppModel {
     private(set) var threadError: String?
     private(set) var health: HealthStatus?
     private(set) var healthError: String?
+    private(set) var mrList: [MrPr] = []
+    private(set) var mrListError: String?
+    private(set) var mrOpenCount: Int = 0
+    private(set) var mrReviewLoaded = false
+    private(set) var authenticator: BiometricAuthenticator
 
     private let demoClient = DemoBackend.client()
 
     init() {
         backendURLString = UserDefaults.standard.string(forKey: Self.backendKey) ?? Self.defaultBackend
+        if isDemo {
+            authenticator = DemoBackend.authenticator()
+        } else {
+            authenticator = FaceIDAuthenticator()
+        }
     }
 
     var client: BackendClient? {
@@ -47,6 +57,7 @@ final class AppModel {
         while !Task.isCancelled {
             await refreshConnection()
             if connection.status == .online, health == nil { await loadHealth() }
+            if connection.status == .online, !mrReviewLoaded { await loadMrReviewStatus() }
             try? await Task.sleep(for: .seconds(15))
         }
     }
@@ -88,5 +99,40 @@ final class AppModel {
             messages.append(ThreadMessage(id: "local-\(UUID())", source: "chat", role: .assistant, text: text))
         }
         streaming = nil
+    }
+
+    func loadMrReviewStatus() async {
+        guard let client else { return }
+        do {
+            let status = try await client.mrReviewStatus()
+            mrOpenCount = status.openCount
+            await loadMrList()
+            mrReviewLoaded = true
+            mrListError = nil
+        } catch {
+            mrListError = error.localizedDescription
+        }
+    }
+
+    func loadMrList() async {
+        guard let client else { return }
+        do {
+            mrList = try await client.mrList()
+            mrListError = nil
+        } catch {
+            mrListError = error.localizedDescription
+        }
+    }
+
+    func approve(_ pr: MrPr) async throws {
+        guard let client else { throw NSError(domain: "AppModel", code: -1, userInfo: [NSLocalizedDescriptionKey: "No client"]) }
+        let _ = try await client.mrApprove(prUrl: pr.url)
+        await loadMrList()
+    }
+
+    func deny(_ pr: MrPr, action: DenyAction, reasons: [String], comment: String) async throws {
+        guard let client else { throw NSError(domain: "AppModel", code: -1, userInfo: [NSLocalizedDescriptionKey: "No client"]) }
+        let _ = try await client.mrDeny(prUrl: pr.url, action: action, reasons: reasons, comment: comment)
+        await loadMrList()
     }
 }
