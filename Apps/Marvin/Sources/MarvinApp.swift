@@ -21,11 +21,9 @@ struct MarvinApp: App {
 /// desktop-only (PRD #152).
 struct RootView: View {
     @Environment(AppModel.self) private var model
-    /// `-tab <name>` opens a given tab: lets simulator screenshots reach every tab without taps.
-    @State private var selection = UserDefaults.standard.string(forKey: "tab") ?? "marvin"
 
     var body: some View {
-        TabView(selection: $selection) {
+        TabView(selection: $model.activeTab) {
             Tab("MARVIN", systemImage: "bubble.left.and.text.bubble.right", value: "marvin") { ThreadView() }
             Tab("Activity", systemImage: "list.bullet.rectangle", value: "activity") { ActivityView() }
             Tab("MR Review", systemImage: "arrow.triangle.pull", value: "review") {

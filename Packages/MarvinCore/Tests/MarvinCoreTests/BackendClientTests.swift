@@ -149,4 +149,81 @@ final class StubProtocol: URLProtocol, @unchecked Sendable {
         let body = try JSONSerialization.jsonObject(with: StubProtocol.lastBody ?? Data()) as? [String: String]
         #expect(body == ["message": "Good morning"])
     }
+
+    @Test func boardDetailDecodesBoardColumns() async throws {
+        StubProtocol.handler = { _ in (200, Data("""
+            {"ok":true,"data":{"repo":"G-Eskayo/marvin","columns":[
+             {"id":"waiting","label":"Waiting for input","cards":[
+              {"id":"1","number":201,"title":"Set up sync","blockedBy":[],"evidence":[],"tags":[],"prLinks":[]}
+             ]},
+             {"id":"done","label":"Done","cards":[]}
+            ]}}
+            """.utf8)) }
+        let board = try await client.boardDetail(repo: "G-Eskayo/marvin")
+        #expect(board.repo == "G-Eskayo/marvin")
+        #expect(board.columns.count == 2)
+        #expect(board.columns[0].label == "Waiting for input")
+        #expect(board.columns[0].cards[0].number == 201)
+    }
+
+    @Test func timelineDecodesEvents() async throws {
+        StubProtocol.handler = { _ in (200, Data("""
+            {"ok":true,"data":[
+             {"id":"1","timestamp":"2026-10-08T10:00:00Z","eventType":"created","description":"Created"},
+             {"id":"2","timestamp":"2026-10-08T11:00:00Z","eventType":"comment","description":"Commented","cost_usd":0.05}
+            ]}
+            """.utf8)) }
+        let events = try await client.timeline(number: 272, repo: "G-Eskayo/marvin")
+        #expect(events.count == 2)
+        #expect(events[0].eventType == "created")
+        #expect(events[1].costUsd == 0.05)
+    }
+
+    @Test func relationsDecodesRelatedItems() async throws {
+        StubProtocol.handler = { _ in (200, Data("""
+            {"ok":true,"data":{"related_tickets":[
+             {"id":"r1","number":201,"title":"Setup","repo":"G-Eskayo/marvin","state":"waiting"}
+            ],"related_prs":[
+             {"id":"p1","number":308,"title":"Activity","repo":"G-Eskayo/marvin-mobile","state":"open"}
+            ],"related_docs":[
+             {"id":"d1","path":"ADR.md","title":"ADR 0042"}
+            ]}}
+            """.utf8)) }
+        let relations = try await client.relationsForTicket(repo: "G-Eskayo/marvin", number: 272)
+        #expect(relations.relatedTickets.count == 1)
+        #expect(relations.relatedTickets[0].title == "Setup")
+        #expect(relations.relatedPRs[0].state == "open")
+        #expect(relations.relatedDocs[0].path == "ADR.md")
+    }
+
+    @Test func relationsContextDecodesProject() async throws {
+        StubProtocol.handler = { _ in (200, Data(#"{"ok":true,"data":{"repo":"G-Eskayo/marvin","name":"MARVIN"}}"#.utf8)) }
+        let context = try await client.relationsContext(project: "G-Eskayo/marvin")
+        #expect(context.name == "MARVIN")
+        #expect(context.repo == "G-Eskayo/marvin")
+    }
+
+    @Test func queueDecodesRows() async throws {
+        StubProtocol.handler = { _ in (200, Data("""
+            {"ok":true,"data":{"queue":[
+             {"id":"q1","number":261,"title":"Map publishes","repo":"G-Eskayo/marvin","state":"waiting","waiting_for":"approval"}
+            ],"error":null,"running":1}}
+            """.utf8)) }
+        let response = try await client.queue()
+        #expect(response.queue.count == 1)
+        #expect(response.queue[0].waitingFor == "approval")
+        #expect(response.running == 1)
+    }
+
+    @Test func replyToTicketSendsBodyAndConfirmedFlag() async throws {
+        StubProtocol.handler = { _ in (200, Data(#"{"ok":true,"data":{"ok":true,"message":"Sent","warning":null}}"#.utf8)) }
+        let result = try await client.replyToTicket(repo: "G-Eskayo/marvin", number: 272, body: "Looks good")
+        #expect(result.ok == true)
+        #expect(result.message == "Sent")
+        #expect(StubProtocol.lastRequest?.url?.path == "/boards/ticket/reply")
+        #expect(StubProtocol.lastRequest?.httpMethod == "POST")
+        let body = try JSONSerialization.jsonObject(with: StubProtocol.lastBody ?? Data()) as? [String: Any]
+        #expect(body?["body"] as? String == "Looks good")
+        #expect(body?["confirmed"] as? Bool == true)
+    }
 }

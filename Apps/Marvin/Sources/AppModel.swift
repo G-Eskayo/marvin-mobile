@@ -8,12 +8,20 @@ import Observation
 final class AppModel {
     static let defaultBackend = "http://100.80.189.85:7880"   // MacBook for the first demo; Mac Mini later (ADR 0042)
     private static let backendKey = "backendURL"
+    private static let activeTabKey = "tab"
 
     /// Launched with `-demo`: a built-in fake backend, for repeatable simulator screenshots.
     let isDemo = ProcessInfo.processInfo.arguments.contains("-demo")
+    /// Launched with `-demoTicket <number>`: navigate to a specific ticket on launch.
+    var demoTicketNumber: Int?
+    /// Launched with `-demoTicketRepo <repo>`: repo for the demo ticket.
+    var demoTicketRepo: String?
 
     var backendURLString: String {
         didSet { UserDefaults.standard.set(backendURLString, forKey: Self.backendKey) }
+    }
+    var activeTab: String {
+        didSet { UserDefaults.standard.set(activeTab, forKey: Self.activeTabKey) }
     }
     private(set) var connection = ConnectionState()
     private(set) var messages: [ThreadMessage] = []
@@ -27,6 +35,15 @@ final class AppModel {
 
     init() {
         backendURLString = UserDefaults.standard.string(forKey: Self.backendKey) ?? Self.defaultBackend
+        activeTab = UserDefaults.standard.string(forKey: Self.activeTabKey) ?? "marvin"
+
+        let args = ProcessInfo.processInfo.arguments
+        if let ticketIdx = args.firstIndex(of: "-demoTicket"), ticketIdx + 1 < args.count {
+            demoTicketNumber = Int(args[ticketIdx + 1])
+        }
+        if let repoIdx = args.firstIndex(of: "-demoTicketRepo"), repoIdx + 1 < args.count {
+            demoTicketRepo = args[repoIdx + 1]
+        }
     }
 
     var client: BackendClient? {

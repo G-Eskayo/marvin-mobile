@@ -15,12 +15,21 @@ public enum DemoBackend {
     }
 
     static func response(for request: URLRequest) -> (Int, String) {
-        switch (request.httpMethod ?? "GET", request.url?.path ?? "") {
+        let query = URLComponents(url: request.url ?? URL(fileURLWithPath: ""), resolvingAgainstBaseURL: false)?.queryItems ?? []
+        let queryValue: (String) -> String? = { key in query.first { $0.name == key }?.value }
+
+        return switch (request.httpMethod ?? "GET", request.url?.path ?? "") {
         case (_, "/status"): (200, #"{"ok":true,"status":"up","uptimeSeconds":4210,"version":"1.0.0"}"#)
         case (_, "/activity"): (200, activity)
         case (_, "/health"): (200, health)
         case (_, "/boards"): (200, boards)
+        case (_, "/boards/load"): (200, boardDetail(for: queryValue("repo") ?? "G-Eskayo/marvin"))
         case (_, "/thread"): (200, thread)
+        case (_, "/activity/timeline"): (200, timeline)
+        case (_, "/relations/ticket"): (200, relations)
+        case (_, "/relations/context"): (200, relationsContext)
+        case (_, "/queue"): (200, queue)
+        case ("POST", "/boards/ticket/reply"): (200, ticketReplyResult)
         case ("POST", "/chat"): (200, chat)
         default: (404, #"{"ok":false,"error":"not in demo data"}"#)
         }
@@ -73,6 +82,20 @@ public enum DemoBackend {
     {"type":"result","text":"","sessionId":"demo","isError":false}
 
     """
+
+    static func boardDetail(for repo: String) -> String {
+        #"{"ok":true,"data":{"repo":"\#(repo)","columns":[{"id":"waiting","label":"Waiting for input","cards":[{"id":"1","number":201,"title":"Set up cross-machine sync","reason":"Needed before we can build distributed indexing","blockedBy":[],"evidence":[],"tags":[],"prLinks":[]},{"id":"2","number":202,"title":"Design the indexing layer","blockedBy":["waiting"],"evidence":[],"tags":[{"id":"blocker","label":"blocker","kind":"blocker"}],"prLinks":[]}]},{"id":"planning","label":"Planning","cards":[{"id":"3","number":203,"title":"Prototype spatial indexing","reason":"Will determine performance ceiling","progress":{"percent":60,"numerator":3,"denominator":5},"blockedBy":[],"evidence":[],"tags":[{"id":"milestone","label":"M1","kind":"milestone"}],"prLinks":[{"id":"1","number":304,"title":"Spatial index prototype","repo":"G-Eskayo/marvin","hasDevEvidence":true}]}]},{"id":"executing","label":"Executing","cards":[{"id":"4","number":272,"title":"Mobile backend: board, overview and MR read endpoints","reason":"Shipping the iPhone app's Activity tab","progress":{"percent":75,"numerator":3,"denominator":4},"blockedBy":[],"evidence":[],"tags":[{"id":"review","label":"code review","kind":"review"}],"prLinks":[{"id":"2","number":308,"title":"Activity board and ticket detail","repo":"G-Eskayo/marvin-mobile","hasDevEvidence":true},{"id":"3","number":309,"title":"MR Review","repo":"G-Eskayo/marvin-mobile","hasDevEvidence":false}]}]},{"id":"done","label":"Done","cards":[{"id":"5","number":261,"title":"Map publishes itself to production","progress":{"percent":100,"numerator":1,"denominator":1},"blockedBy":[],"evidence":[],"tags":[],"prLinks":[{"id":"4","number":307,"title":"Map auto-publish gate","repo":"G-Eskayo/marvin","hasDevEvidence":true}]}]}]}}"#
+    }
+
+    static let timeline = #"{"ok":true,"data":[{"id":"1","timestamp":"2026-10-08T10:00:00Z","eventType":"created","description":"Ticket created"},{"id":"2","timestamp":"2026-10-08T11:30:00Z","eventType":"label_added","description":"Added label: executing","costUsd":0},{"id":"3","timestamp":"2026-10-08T14:20:00Z","eventType":"comment","description":"Left a comment: checking progress","costUsd":0.05},{"id":"4","timestamp":"2026-10-08T17:57:46Z","eventType":"status_change","description":"Changed status to running","costUsd":0}]}"#
+
+    static let relations = #"{"ok":true,"data":{"related_tickets":[{"id":"rel1","number":201,"title":"Set up cross-machine sync","repo":"G-Eskayo/marvin","state":"waiting"},{"id":"rel2","number":199,"title":"Parallel dispatch: first live run","repo":"G-Eskayo/marvin","state":"done"}],"related_prs":[{"id":"pr1","number":308,"title":"Activity board and ticket detail","repo":"G-Eskayo/marvin-mobile","state":"open"},{"id":"pr2","number":309,"title":"MR Review","repo":"G-Eskayo/marvin-mobile","state":"draft"}],"related_docs":[{"id":"doc1","path":"docs/adr/0042-mobile-backend-design.md","title":"ADR 0042: Mobile Backend Design"},{"id":"doc2","path":"CONTEXT.md","title":"MARVIN Mobile Context"}]}}"#
+
+    static let relationsContext = #"{"ok":true,"data":{"repo":"G-Eskayo/marvin","name":"MARVIN"}}"#
+
+    static let queue = #"{"ok":true,"data":{"queue":[{"id":"q1","number":261,"title":"Map publishes itself to production","repo":"G-Eskayo/marvin","state":"waiting","waiting_for":"approval"},{"id":"q2","number":199,"title":"Parallel dispatch: first live run","repo":"G-Eskayo/marvin","state":"waiting","waiting_for":"fix"}],"error":null,"running":1}}"#
+
+    static let ticketReplyResult = #"{"ok":true,"data":{"ok":true,"message":"Reply posted successfully","warning":null}}"#
 }
 
 /// Serves `DemoBackend`'s fixtures. `/chat` is held back by `replyDelay` so the typing
