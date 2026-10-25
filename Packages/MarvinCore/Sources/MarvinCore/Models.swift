@@ -87,3 +87,55 @@ public struct ThreadMessage: Decodable, Equatable, Identifiable, Sendable {
         self.ts = ts
     }
 }
+
+/// `GET /mr/list`: one open PR in the pipeline.
+public struct MrPr: Decodable, Equatable, Identifiable, Sendable {
+    public let number: Int
+    public let repo: String
+    public let url: String
+    public let title: String
+    public let author: String
+
+    public var id: String { url }
+}
+
+/// Status of a PR in the MR Review tab: whether the reviewer has finished deciding.
+public enum MrTabStatus: String, Decodable, Sendable {
+    case open, approved, denied
+}
+
+/// The reviewer's judgment on a PR: approved, or denied with reasons.
+public struct MrReviewStatus: Decodable, Equatable, Sendable {
+    public let status: MrTabStatus
+    public let deniedReasons: [String]?
+    public let deniedComment: String?
+
+    enum CodingKeys: String, CodingKey {
+        case status
+        case deniedReasons = "denied_reasons"
+        case deniedComment = "denied_comment"
+    }
+}
+
+/// The ticket that a PR belongs to: number, title, and the repo.
+public struct MrTicketContext: Decodable, Equatable, Sendable {
+    public let number: Int
+    public let title: String
+    public let repo: String
+}
+
+/// One reason why a PR was denied.
+public enum MrDenyReason: String, Codable, CaseIterable, Sendable {
+    case design, testing, breaking, latency, other
+}
+
+/// What to do with a denied PR: ask the author to fix it or escalate.
+public enum MrDenyAction: String, Codable, CaseIterable, Sendable {
+    case requestChanges, escalate
+}
+
+/// Result of approving or denying a PR.
+public struct MrActionResult: Decodable, Equatable, Sendable {
+    public let ok: Bool
+    public let message: String?
+}

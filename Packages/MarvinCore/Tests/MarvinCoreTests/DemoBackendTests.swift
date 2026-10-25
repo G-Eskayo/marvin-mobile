@@ -38,4 +38,23 @@ import Testing
         #expect(reply.error == nil)
         #expect(!reply.text.isEmpty)
     }
+
+    @Test func servesOpenPRsInMrList() async throws {
+        let prs = try await client.mrList()
+        #expect(prs.count == 2)
+        #expect(prs[0].number == 42)
+        #expect(prs[0].title == "Add MR Review to mobile")
+        #expect(prs.allSatisfy { !$0.url.isEmpty })
+    }
+
+    @Test func servesMrReviewStatus() async throws {
+        let status = try await client.mrReviewStatus(url: "https://github.com/G-Eskayo/marvin/pull/42")
+        #expect(status.status == .open)
+    }
+
+    @Test func servesMrTicketContext() async throws {
+        let context = try await client.mrTicketContext(ref: "marvin#152", repo: "G-Eskayo/marvin")
+        #expect(context.number == 152)
+        #expect(context.title == "Mobile: MR Review feature")
+    }
 }

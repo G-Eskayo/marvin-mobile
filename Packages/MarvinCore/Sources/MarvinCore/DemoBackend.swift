@@ -14,6 +14,10 @@ public enum DemoBackend {
         return BackendClient(baseURL: baseURL, session: URLSession(configuration: config))
     }
 
+    public static func authenticator() -> any BiometricAuthenticating {
+        DemoAuthenticator()
+    }
+
     static func response(for request: URLRequest) -> (Int, String) {
         switch (request.httpMethod ?? "GET", request.url?.path ?? "") {
         case (_, "/status"): (200, #"{"ok":true,"status":"up","uptimeSeconds":4210,"version":"1.0.0"}"#)
@@ -22,6 +26,11 @@ public enum DemoBackend {
         case (_, "/boards"): (200, boards)
         case (_, "/thread"): (200, thread)
         case ("POST", "/chat"): (200, chat)
+        case (_, "/mr/list"): (200, mrList)
+        case (_, "/mr/review-status"): (200, mrReviewStatus)
+        case (_, "/mr/ticket-context"): (200, mrTicketContext)
+        case ("POST", "/mr/approve"): (200, mrActionResult)
+        case ("POST", "/mr/deny"): (200, mrActionResult)
         default: (404, #"{"ok":false,"error":"not in demo data"}"#)
         }
     }
@@ -73,6 +82,31 @@ public enum DemoBackend {
     {"type":"result","text":"","sessionId":"demo","isError":false}
 
     """
+
+    static let mrList = """
+    {"ok":true,"data":[
+     {"number":42,"repo":"G-Eskayo/marvin","url":"https://github.com/G-Eskayo/marvin/pull/42","title":"Add MR Review to mobile","author":"Claude"},
+     {"number":43,"repo":"G-Eskayo/clarity-captions","url":"https://github.com/G-Eskayo/clarity-captions/pull/43","title":"Latency baseline: 10% budget","author":"Gil"}
+    ]}
+    """
+
+    static let mrReviewStatus = """
+    {"ok":true,"data":{"status":"open","denied_reasons":null,"denied_comment":null}}
+    """
+
+    static let mrTicketContext = """
+    {"ok":true,"data":{"number":152,"title":"Mobile: MR Review feature","repo":"G-Eskayo/marvin"}}
+    """
+
+    static let mrActionResult = """
+    {"ok":true,"data":{"ok":true,"message":"action completed"}}
+    """
+}
+
+final class DemoAuthenticator: BiometricAuthenticating {
+    func authenticate() async throws {
+        try await Task.sleep(for: .milliseconds(500))
+    }
 }
 
 /// Serves `DemoBackend`'s fixtures. `/chat` is held back by `replyDelay` so the typing

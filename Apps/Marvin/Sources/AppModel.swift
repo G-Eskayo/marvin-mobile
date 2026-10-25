@@ -22,8 +22,13 @@ final class AppModel {
     private(set) var threadError: String?
     private(set) var health: HealthStatus?
     private(set) var healthError: String?
+    private(set) var mrList: [MrPr] = []
+    private(set) var mrListError: String?
+    private(set) var mrReviewStatus: [String: MrReviewStatus] = [:]
+    private(set) var gate = BiometricGate(authenticator: FaceIDAuthenticator())
 
     private let demoClient = DemoBackend.client()
+    private let demoGate = BiometricGate(authenticator: DemoBackend.authenticator())
 
     init() {
         backendURLString = UserDefaults.standard.string(forKey: Self.backendKey) ?? Self.defaultBackend
@@ -34,8 +39,13 @@ final class AppModel {
         return URL(string: backendURLString).map { BackendClient(baseURL: $0) }
     }
 
+    var biometricGate: BiometricGate {
+        isDemo ? demoGate : gate
+    }
+
     var isSending: Bool { streaming != nil }
     var redCheckCount: Int { health?.count(.red) ?? 0 }
+    var mrOpenCount: Int { mrList.count }
 
     func refreshConnection() async {
         guard let client else { connection.record(.unreachable, at: .now); return }
@@ -46,7 +56,11 @@ final class AppModel {
     func monitorConnection() async {
         while !Task.isCancelled {
             await refreshConnection()
-            if connection.status == .online, health == nil { await loadHealth() }
+            if connection.status == .online {
+                if health == nil { await loadHealth() }
+                if mrList.isEmpty { await loadMrList() }
+                await loadMrReviewStatus()
+            }
             try? await Task.sleep(for: .seconds(15))
         }
     }
@@ -88,5 +102,40 @@ final class AppModel {
             messages.append(ThreadMessage(id: "local-\(UUID())", source: "chat", role: .assistant, text: text))
         }
         streaming = nil
+    }
+
+    func loadMrList() async {
+        guard let client else { return }
+        do {
+            mrList = try await client.mrList()
+            mrListError = nil
+        } catch {
+            mrListError = error.localizedDescription
+        }
+    }
+
+    func loadMrReviewStatus() async {
+        guard let client else { return }
+        for pr in mrList {
+            do {
+                mrReviewStatus[pr.id] = try await client.mrReviewStatus(url: pr.url)
+            } catch {
+                mrReviewStatus[pr.id] = nil
+            }
+        }
+    }
+
+    func approve(_ pr: MrPr) async {
+        guard let client else { return }
+        let result = await biometricGate.authorize(action: { try await client.mrApprove(prUrl: pr.url) })
+        if case .success = result { await loadMrReviewStatus() }
+    }
+
+    func deny(_ pr: MrPr, action: MrDenyAction, reasons: [MrDenyReason], comment: String?) async {
+        guard let client else { return }
+        let result = await biometricGate.authorize(action: {
+            try await client.mrDeny(prUrl: pr.url, reasons: reasons, comment: comment, action: action)
+        })
+        if case .success = result { await loadMrReviewStatus() }
     }
 }

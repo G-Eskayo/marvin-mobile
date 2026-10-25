@@ -35,5 +35,7 @@ shot 3-thread-reply 6 -tab marvin -demoPrompt "What's going on today?"
 shot 4-activity 4 -tab activity
 shot 5-health 4 -tab health
 shot 6-mr-review 3 -tab review
-shot 7-docs 3 -tab docs
+shot 7-mr-detail 3 -tab review -mrDetail 0
+shot 8-mr-deny 3 -tab review -mrDetail 0 -mrDeny
+shot 9-docs 3 -tab docs
 xcrun simctl terminate "$UDID" "$BUNDLE" >/dev/null 2>&1 || true
