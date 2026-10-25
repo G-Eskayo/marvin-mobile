@@ -1,40 +1,70 @@
 import MarvinCore
 import SwiftUI
 
-/// Activity for now: projects with their due dates, and the pipeline's ticket runs.
-/// Full boards and ticket answering come with marvin-mobile#2.
+/// Activity shows projects, next-up queue, board columns with cards, and detailed ticket view.
 struct ActivityView: View {
     @Environment(AppModel.self) private var model
     @State private var boards: [Board] = []
+    @State private var selectedBoard: Board?
+    @State private var boardDetail: BoardDetail?
     @State private var activity: [ActivityItem] = []
     @State private var error: String?
     @State private var loaded = false
+    @State private var selectedCard: Card?
+    @State private var demoTicketRepo: String?
+    @State private var demoTicketNumber: Int?
+    @State private var showDemoTicketDetail = false
 
     var body: some View {
         Page(title: "Activity") {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    if let error, model.connection.status == .online {
-                        Text(error).font(.footnote).foregroundStyle(Theme.muted)
-                    }
-                    if !activity.isEmpty {
-                        HStack(spacing: 10) {
-                            StatCard(label: "Live now", value: "\(activity.count { $0.isLiveNow == true })", valueColor: Theme.color(.green))
-                            StatCard(label: "Failed", value: "\(activity.count { $0.failed })",
-                                     valueColor: activity.contains { $0.failed } ? Theme.color(.red) : Theme.text)
+            if showDemoTicketDetail, let repo = demoTicketRepo, let number = demoTicketNumber {
+                NavigationStack {
+                    TicketDetailView(repo: repo, number: number)
+                }
+            } else if let boardDetail, let board = selectedBoard {
+                NavigationStack {
+                    VStack(alignment: .leading, spacing: 0) {
+                        BoardColumnsView(boardDetail: boardDetail) { card in
+                            selectedCard = card
                         }
                     }
-                    if !boards.isEmpty { projects }
-                    if !activity.isEmpty { runs }
-                    if loaded, boards.isEmpty, activity.isEmpty, error == nil {
-                        Text("No activity yet").foregroundStyle(Theme.muted)
+                    .navigationDestination(item: $selectedCard) { card in
+                        TicketDetailView(repo: card.repo ?? board.repo, number: card.number)
                     }
                 }
+            } else if let selectedBoard {
+                HStack {
+                    Text("Loading board...").foregroundStyle(Theme.muted)
+                    Spacer()
+                }
                 .padding()
+                .task { await loadBoard(selectedBoard) }
+            } else {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 18) {
+                        if let error, model.connection.status == .online {
+                            Text(error).font(.footnote).foregroundStyle(Theme.muted)
+                        }
+                        if !activity.isEmpty {
+                            HStack(spacing: 10) {
+                                StatCard(label: "Live now", value: "\(activity.count { $0.isLiveNow == true })", valueColor: Theme.color(.green))
+                                StatCard(label: "Failed", value: "\(activity.count { $0.failed })",
+                                         valueColor: activity.contains { $0.failed } ? Theme.color(.red) : Theme.text)
+                            }
+                        }
+                        if !boards.isEmpty { projects }
+                        if !activity.isEmpty { runs }
+                        if loaded, boards.isEmpty, activity.isEmpty, error == nil {
+                            Text("No activity yet").foregroundStyle(Theme.muted)
+                        }
+                    }
+                    .padding()
+                }
+                .refreshable { await load() }
+                .task { await load() }
             }
-            .refreshable { await load() }
-            .task { await load() }
         }
+        .onAppear { checkDemoArgs() }
     }
 
     private var projects: some View {
@@ -55,6 +85,7 @@ struct ActivityView: View {
                         }
                         .padding(.horizontal, 12).padding(.vertical, 8)
                         .background(Theme.raised, in: .rect(cornerRadius: 8))
+                        .onTapGesture { selectedBoard = board }
                     }
                 }
             }
@@ -86,6 +117,31 @@ struct ActivityView: View {
             self.error = error.localizedDescription
         }
         loaded = true
+    }
+
+    private func loadBoard(_ board: Board) async {
+        guard let client = model.client else { return }
+        do {
+            boardDetail = try await client.boardDetail(repo: board.repo)
+            error = nil
+        } catch {
+            self.error = error.localizedDescription
+            selectedBoard = nil
+        }
+    }
+
+    private func checkDemoArgs() {
+        let args = ProcessInfo.processInfo.arguments
+        if let ticketIndex = args.firstIndex(of: "-demoTicket"), ticketIndex + 1 < args.count,
+           let number = Int(args[ticketIndex + 1]) {
+            demoTicketNumber = number
+        }
+        if let repoIndex = args.firstIndex(of: "-demoTicketRepo"), repoIndex + 1 < args.count {
+            demoTicketRepo = args[repoIndex + 1]
+        }
+        if demoTicketNumber != nil && demoTicketRepo != nil {
+            showDemoTicketDetail = true
+        }
     }
 }
 

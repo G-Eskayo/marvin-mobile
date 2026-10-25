@@ -45,11 +45,54 @@ public struct BackendClient: Sendable {
     public func activity() async throws -> [ActivityItem] { try await get("activity") }
     public func health() async throws -> HealthStatus { try await get("health") }
     public func boards() async throws -> [Board] { try await get("boards") }
+    public func boardDetail(repo: String) async throws -> BoardDetail {
+        try await get("boards/load", query: [URLQueryItem(name: "repo", value: repo)])
+    }
+    public func ticketDetail(repo: String, number: Int) async throws -> TicketDetail {
+        try await get("boards/ticket", query: [
+            URLQueryItem(name: "repo", value: repo),
+            URLQueryItem(name: "number", value: String(number))
+        ])
+    }
+    public func timeline(repo: String, number: Int) async throws -> [TimelineEvent] {
+        try await get("activity/timeline", query: [
+            URLQueryItem(name: "repo", value: repo),
+            URLQueryItem(name: "number", value: String(number))
+        ])
+    }
+    public func relationsForTicket(repo: String, number: Int) async throws -> TicketRelations {
+        try await get("relations/ticket", query: [
+            URLQueryItem(name: "repo", value: repo),
+            URLQueryItem(name: "number", value: String(number))
+        ])
+    }
+    public func queue() async throws -> QueueResponse { try await get("queue") }
 
     /// The Thread, oldest first (the backend pages newest first).
     public func thread(limit: Int = 50) async throws -> [ThreadMessage] {
         let page: [ThreadMessage] = try await get("thread", query: [URLQueryItem(name: "limit", value: String(limit))])
         return page.reversed()
+    }
+
+    /// `POST /boards/ticket/reply`: post a comment/action to a ticket and get the result.
+    public func replyToTicket(repo: String, number: Int, body: String) async throws -> TicketReplyResult {
+        var request = URLRequest(url: baseURL.appending(path: "boards/ticket/reply"))
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        struct ReplyPayload: Encodable { let repo: String; let number: Int; let body: String; let confirmed: Bool }
+        request.httpBody = try JSONEncoder().encode(ReplyPayload(repo: repo, number: number, body: body, confirmed: true))
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse else { throw BackendError.badResponse }
+        if http.statusCode == 403 { throw BackendError.notAllowlisted }
+        if !(200..<300).contains(http.statusCode) {
+            let message = (try? JSONDecoder().decode(ErrorEnvelope.self, from: data))?.error
+            throw BackendError.server(message ?? "HTTP \(http.statusCode)")
+        }
+        let envelope = try JSONDecoder().decode(Envelope<TicketReplyResult>.self, from: data)
+        guard envelope.ok, let value = envelope.data else {
+            throw BackendError.server(envelope.error ?? "empty response")
+        }
+        return value
     }
 
     /// `POST /chat`: streams the reply's events as they arrive.
@@ -81,10 +124,10 @@ public struct BackendClient: Sendable {
 
     // MARK: - Plumbing
 
-    private struct Envelope<T: Decodable>: Decodable {
-        let ok: Bool
-        let data: T?
-        let error: String?
+    public struct Envelope<T: Decodable>: Decodable {
+        public let ok: Bool
+        public let data: T?
+        public let error: String?
     }
 
     private struct ErrorEnvelope: Decodable { let error: String? }

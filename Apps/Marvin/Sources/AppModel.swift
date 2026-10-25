@@ -15,6 +15,7 @@ final class AppModel {
     var backendURLString: String {
         didSet { UserDefaults.standard.set(backendURLString, forKey: Self.backendKey) }
     }
+    var activeTab: String
     private(set) var connection = ConnectionState()
     private(set) var messages: [ThreadMessage] = []
     /// The reply being streamed right now, shown under the Thread until it finishes.
@@ -27,6 +28,12 @@ final class AppModel {
 
     init() {
         backendURLString = UserDefaults.standard.string(forKey: Self.backendKey) ?? Self.defaultBackend
+        let args = ProcessInfo.processInfo.arguments
+        if let tabIndex = args.firstIndex(of: "-tab"), tabIndex + 1 < args.count {
+            activeTab = args[tabIndex + 1]
+        } else {
+            activeTab = "activity"
+        }
     }
 
     var client: BackendClient? {
