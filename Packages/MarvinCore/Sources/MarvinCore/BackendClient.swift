@@ -52,6 +52,17 @@ public struct BackendClient: Sendable {
         return page.reversed()
     }
 
+    public func docsRepos() async throws -> [DocRepo] { try await get("docs/repos") }
+    public func docsTree(repo: String) async throws -> [DocTreeEntry] { try await get("docs/tree", query: [URLQueryItem(name: "repo", value: repo)]) }
+    public func docsContent(repo: String, path: String) async throws -> String {
+        struct Wrapper: Decodable { let content: String }
+        let wrapped: Wrapper = try await get("docs/content", query: [
+            URLQueryItem(name: "repo", value: repo),
+            URLQueryItem(name: "path", value: path)
+        ])
+        return wrapped.content
+    }
+
     /// `POST /chat`: streams the reply's events as they arrive.
     public func chat(_ message: String) -> AsyncThrowingStream<ChatEvent, Error> {
         var request = URLRequest(url: baseURL.appending(path: "chat"))

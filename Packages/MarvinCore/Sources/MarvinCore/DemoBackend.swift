@@ -22,8 +22,23 @@ public enum DemoBackend {
         case (_, "/boards"): (200, boards)
         case (_, "/thread"): (200, thread)
         case ("POST", "/chat"): (200, chat)
+        case (_, "/docs/repos"): (200, docsRepos)
+        case (_, "/docs/tree"): (200, docsTree)
+        case (_, "/docs/content"): (200, docsContent(for: request))
         default: (404, #"{"ok":false,"error":"not in demo data"}"#)
         }
+    }
+
+    private static func docsContent(for request: URLRequest) -> String {
+        let path = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "path" }?.value ?? ""
+        if path.contains("broken.md") {
+            return """
+            {"ok":true,"data":{"content":"# Broken [link](#\\n\\nUnclosed code: ```\\n\\nInvalid reference: [undefined][missing]\\n"}}
+            """
+        }
+        return """
+        {"ok":true,"data":{"content":"# \(path)\\n\\nThis is a document.\\n\\n## Section\\n\\nSome content here.\\n"}}
+        """
     }
 
     // MARK: - Fixtures (shapes match the real mobile backend, 2026-10-08)
@@ -72,6 +87,23 @@ public enum DemoBackend {
     {"type":"text","text":"Want me to open #199 on the Activity tab?"}
     {"type":"result","text":"","sessionId":"demo","isError":false}
 
+    """
+
+    static let docsRepos = """
+    {"ok":true,"data":[
+     {"name":"marvin","path":"G-Eskayo/marvin"},
+     {"name":"clarity-captions","path":"G-Eskayo/clarity-captions"}
+    ]}
+    """
+
+    static let docsTree = """
+    {"ok":true,"data":[
+     {"name":"Where things are","path":"/","children":[],"isDir":true},
+     {"name":"CONTEXT.md","path":"/CONTEXT.md","children":null,"isDir":false},
+     {"name":"docs","path":"/docs","children":[],"isDir":true},
+     {"name":"ADR 0021","path":"/docs/adr-0021.md","children":null,"isDir":false},
+     {"name":"broken.md","path":"/docs/broken.md","children":null,"isDir":false}
+    ]}
     """
 }
 

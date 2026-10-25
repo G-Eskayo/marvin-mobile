@@ -34,10 +34,7 @@ struct RootView: View {
             }
             Tab("Health", systemImage: "heart.text.square", value: "health") { HealthView() }
                 .badge(model.redCheckCount)
-            Tab("Docs", systemImage: "doc.text", value: "docs") {
-                ComingSoonView(title: "Docs", ticket: "marvin-mobile#4",
-                               blurb: "Read CONTEXT.md, ADRs and plans from every project, read-only.")
-            }
+            Tab("Docs", systemImage: "doc.text", value: "docs") { DocsView() }
         }
     }
 }

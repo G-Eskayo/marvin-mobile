@@ -87,3 +87,57 @@ public struct ThreadMessage: Decodable, Equatable, Identifiable, Sendable {
         self.ts = ts
     }
 }
+
+/// `GET /docs/repos`: one docs repository.
+public struct DocRepo: Decodable, Equatable, Identifiable, Sendable {
+    public let name: String
+    public let path: String
+    public var id: String { path }
+}
+
+/// One entry in `GET /docs/tree`: a file or directory (directory membership inferred from presence of children).
+public struct DocTreeEntry: Decodable, Equatable, Identifiable, Sendable {
+    public let name: String
+    public let path: String
+    public let children: [DocTreeEntry]?
+    private let isDirRaw: Bool?
+
+    public var id: String { path }
+    public var isDir: Bool { isDirRaw ?? (children != nil) }
+
+    enum CodingKeys: String, CodingKey {
+        case name, path, children
+        case isDirRaw = "isDir"
+    }
+
+    /// Defensive decode: missing or malformed `isDir` field defaults to inferring from children.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        name = try container.decode(String.self, forKey: .name)
+        path = try container.decode(String.self, forKey: .path)
+        children = try container.decodeIfPresent([DocTreeEntry].self, forKey: .children)
+        isDirRaw = try container.decodeIfPresent(Bool.self, forKey: .isDirRaw)
+    }
+
+    /// Deduplicated children one level deeper than this entry, filtered by `containingPath`, sorted (directories first, then by name).
+    public func children(of containingPath: String, in tree: [DocTreeEntry]) -> [DocTreeEntry] {
+        let prefix = containingPath == "/" ? "/" : containingPath + "/"
+        let candidates = tree.filter { $0.path.hasPrefix(prefix) && $0.path != containingPath }
+        let nextLevel = candidates.filter { entry in
+            let relativePath = String(entry.path.dropFirst(prefix.count))
+            return !relativePath.contains("/")
+        }
+        var seen = Set<String>()
+        var deduped: [DocTreeEntry] = []
+        for entry in nextLevel {
+            if !seen.contains(entry.path) {
+                seen.insert(entry.path)
+                deduped.append(entry)
+            }
+        }
+        return deduped.sorted { a, b in
+            if a.isDir != b.isDir { return a.isDir }
+            return a.name.lowercased() < b.name.lowercased()
+        }
+    }
+}

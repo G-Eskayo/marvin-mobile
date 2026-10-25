@@ -1,0 +1,13 @@
+1. **`MarvinCore` models** (`Models.swift` or a new `DocsModels.swift`): add `DocRepo` and `DocTreeEntry` (with the defensive `isDir` decode).
+2. **`DocsTree.swift`** (new file in `MarvinCore`): the pure `DocTreeEntry.children(of:in:)` function — dedupe, directory-inference, traversal-segment handling, directories-first sort.
+3. **`BackendClient`**: add `docsRepos()`, `docsTree(repo:)`, `docsContent(repo:path:)` using the existing `get(_:query:)` plumbing.
+4. **`DemoBackend`**: add `/docs/repos`, `/docs/tree`, `/docs/content` cases to `response(for:)`, with fixture data headed by a "Where things are" entry, a small nested tree, and one deliberately-malformed-markdown fixture file for the fallback check.
+5. **Tests**: write items 1–20 above (`BackendClientTests`, new `DocsTreeTests`, `DemoBackendTests`) before any view code; confirm they fail against the current code, then make them pass.
+6. **`DocsView.swift`** (new file in `Apps/Marvin/Sources`): top-level repo list (`Page(title: "Docs")`, `ActivityView`-style `@State`/`load()`/`.task`/`.refreshable`), each row a `NavigationLink` to `DocsRepoView`.
+7. **`DocsRepoView`**: fetches the repo's full tree once (`.task`), owns it as `@State`, renders the root level via `DocsTreeLevel`.
+8. **`DocsTreeLevel`** (recursive, parameterized by `path`): renders `DocTreeEntry.children(of:in:)` for the current path; directory rows push another `DocsTreeLevel` one level deeper, file rows push `DocsContentView`.
+9. **`DocsContentView`**: fetches content via `.task`, renders `AttributedString(markdown:)` for `.md` paths with a plain-text fallback on a parse throw, `Text(...).font(.body.monospaced())` with `.textSelection(.enabled)` otherwise (matching `CheckDetail`'s selection pattern).
+10. **`MarvinApp.swift`**: replace the Docs tab's `ComingSoonView` with `DocsView()`.
+11. **`scripts/screenshots.sh`**: extend the existing `shot 7-docs` step (or add adjacent `shot`s) to also capture the tree level and an open Markdown file, via a debug-only launch argument reaching that nav state, since the pipeline's screenshot stage can't tap through the UI itself.
+12. **Verify**: `swift test --package-path Packages/MarvinCore` green; state plainly in the PR which behavior (the malformed-markdown fallback's visual appearance, and anything needing the real desktop backend's actual JSON shapes) remains unverified by me.
+13. **PR**: closing comment/PR body carries the simulator screenshots, "you want X → tap Y → see Z" use cases per `docs/agents/pr-requirements.md`, and the Decisions block (d1–d3) for Gil to answer.

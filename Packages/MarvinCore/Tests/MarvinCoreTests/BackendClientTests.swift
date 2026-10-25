@@ -149,4 +149,51 @@ final class StubProtocol: URLProtocol, @unchecked Sendable {
         let body = try JSONSerialization.jsonObject(with: StubProtocol.lastBody ?? Data()) as? [String: String]
         #expect(body == ["message": "Good morning"])
     }
+
+    @Test func docsReposDecodesRepositoryList() async throws {
+        StubProtocol.handler = { _ in (200, Data("""
+            {"ok":true,"data":[{"name":"marvin","path":"G-Eskayo/marvin"}]}
+            """.utf8)) }
+        let repos = try await client.docsRepos()
+        #expect(repos.count == 1)
+        #expect(repos[0].name == "marvin")
+        #expect(repos[0].path == "G-Eskayo/marvin")
+    }
+
+    @Test func docsTreeDecodesEntries() async throws {
+        StubProtocol.handler = { _ in (200, Data("""
+            {"ok":true,"data":[
+             {"name":"README.md","path":"/README.md","children":null,"isDir":false},
+             {"name":"docs","path":"/docs","children":[],"isDir":true}]}
+            """.utf8)) }
+        let tree = try await client.docsTree(repo: "G-Eskayo/marvin")
+        #expect(tree.count == 2)
+        #expect(tree[0].name == "README.md")
+        #expect(tree[0].isDir == false)
+        #expect(tree[1].isDir == true)
+    }
+
+    @Test func docsTreeInfersDirectoriesFromMissingIsDir() async throws {
+        StubProtocol.handler = { _ in (200, Data("""
+            {"ok":true,"data":[{"name":"docs","path":"/docs","children":[]}]}
+            """.utf8)) }
+        let tree = try await client.docsTree(repo: "G-Eskayo/marvin")
+        #expect(tree[0].isDir == true)
+    }
+
+    @Test func docsContentFetchesAsString() async throws {
+        StubProtocol.handler = { _ in (200, Data("""
+            {"ok":true,"data":{"content":"# Title\\n\\nContent here"}}
+            """.utf8)) }
+        let content = try await client.docsContent(repo: "G-Eskayo/marvin", path: "/README.md")
+        #expect(content == "# Title\n\nContent here")
+    }
+
+    @Test func docsContentIncludesRepoInQuery() async throws {
+        StubProtocol.handler = { _ in (200, Data(#"{"ok":true,"data":{"content":"x"}}"#.utf8)) }
+        _ = try await client.docsContent(repo: "G-Eskayo/marvin", path: "/file.md")
+        let query = URLComponents(url: StubProtocol.lastRequest!.url!, resolvingAgainstBaseURL: false)?.queryItems ?? []
+        #expect(query.contains { $0.name == "repo" && $0.value == "G-Eskayo/marvin" })
+        #expect(query.contains { $0.name == "path" && $0.value == "/file.md" })
+    }
 }

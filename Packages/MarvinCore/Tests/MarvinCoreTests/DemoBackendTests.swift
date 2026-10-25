@@ -38,4 +38,29 @@ import Testing
         #expect(reply.error == nil)
         #expect(!reply.text.isEmpty)
     }
+
+    @Test func servesDocsRepos() async throws {
+        let repos = try await client.docsRepos()
+        #expect(!repos.isEmpty)
+        #expect(repos.allSatisfy { !$0.name.isEmpty && !$0.path.isEmpty })
+    }
+
+    @Test func servesDocsTree() async throws {
+        let tree = try await client.docsTree(repo: "test")
+        #expect(!tree.isEmpty)
+    }
+
+    @Test func servesDocsContentAsMarkdown() async throws {
+        let content = try await client.docsContent(repo: "test", path: "/CONTEXT.md")
+        #expect(!content.isEmpty)
+    }
+
+    @Test func treeSortsDirectoriesFirstThenByName() async throws {
+        let tree = try await client.docsTree(repo: "test")
+        let dirs = tree.filter { $0.isDir }
+        let files = tree.filter { !$0.isDir }
+        if !dirs.isEmpty, !files.isEmpty {
+            #expect(tree.firstIndex { $0.isDir } ?? 0 < tree.firstIndex { !$0.isDir } ?? Int.max)
+        }
+    }
 }
