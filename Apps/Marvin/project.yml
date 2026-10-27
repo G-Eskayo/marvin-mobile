@@ -20,6 +20,7 @@ targets:
     platform: iOS
     sources:
       - Sources
+      - Resources   # Assets.xcassets: the app icon (#436, design on marvin #428)
     dependencies:
       - package: MarvinCore
     settings:
@@ -28,6 +29,7 @@ targets:
         TARGETED_DEVICE_FAMILY: "1"  # iPhone only (PRD #152 out of scope: iPad)
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: "MARVIN"   # ADR: installed display name is just "MARVIN"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon   # celestial-navigation M on pure black (#436)
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UISupportedInterfaceOrientations: "UIInterfaceOrientationPortrait"
         # The backend is plain HTTP on a Tailscale address (ADR 0042); the tunnel is the encryption,
