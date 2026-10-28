@@ -22,6 +22,11 @@ public enum DemoBackend {
         case (_, "/boards"): (200, boards)
         case (_, "/thread"): (200, thread)
         case ("POST", "/chat"): (200, chat)
+        case (_, "/mr/list"): (200, mrList)
+        case (_, "/mr/review-status"): (200, mrReviewStatus)
+        case (_, "/mr/ticket-context/_"): (200, mrTicketContext)
+        case ("POST", "/mr/approve"): (200, mrApproveResult)
+        case ("POST", "/mr/deny"): (200, mrDenyResult)
         default: (404, #"{"ok":false,"error":"not in demo data"}"#)
         }
     }
@@ -72,6 +77,32 @@ public enum DemoBackend {
     {"type":"text","text":"Want me to open #199 on the Activity tab?"}
     {"type":"result","text":"","sessionId":"demo","isError":false}
 
+    """
+
+    static let mrList = """
+    {"ok":true,"data":[
+     {"number":315,"repo":"G-Eskayo/marvin","key":"G-Eskayo/marvin#315","title":"MR Review: approve and deny with Face ID","status":"readyToMerge","ticket":{"number":3,"repo":"G-Eskayo/marvin-mobile","key":"G-Eskayo/marvin-mobile#3","title":"MR Review tab"},"author":"claude-code","created_at":"2026-10-23T14:22:11Z","url":"https://github.com/G-Eskayo/marvin/pull/315"},
+     {"number":312,"repo":"G-Eskayo/marvin","key":"G-Eskayo/marvin#312","title":"Backend: /mr/list, /mr/review-status, /mr/ticket-context endpoints","status":"checksRunning","ticket":{"number":3,"repo":"G-Eskayo/marvin-mobile","key":"G-Eskayo/marvin-mobile#3","title":"MR Review tab"},"author":"claude-code","created_at":"2026-10-22T09:15:30Z","url":"https://github.com/G-Eskayo/marvin/pull/312"},
+     {"number":309,"repo":"G-Eskayo/clarity-captions","key":"G-Eskayo/clarity-captions#309","title":"Inference: streaming batch decoding for real-time captions","status":"checksRequired","ticket":{"number":25,"repo":"G-Eskayo/clarity-captions","key":"G-Eskayo/clarity-captions#25","title":"Latency baseline and 10% budget"},"author":"fiona-perez","created_at":"2026-10-20T16:45:00Z","url":"https://github.com/G-Eskayo/clarity-captions/pull/309"},
+     {"number":305,"repo":"G-Eskayo/marvin","key":"G-Eskayo/marvin#305","title":"Dashboard: export filtered view as CSV","status":"needsRework","ticket":null,"author":"claude-code","created_at":"2026-10-18T11:22:45Z","url":"https://github.com/G-Eskayo/marvin/pull/305"},
+     {"number":300,"repo":"G-Eskayo/marvin-mobile","key":"G-Eskayo/marvin-mobile#300","title":"Draft: Thread UI exploration","status":"draft","ticket":null,"author":"claude-code","created_at":"2026-10-15T08:10:20Z","url":"https://github.com/G-Eskayo/marvin-mobile/pull/300"}
+    ]}
+    """
+
+    static let mrReviewStatus = """
+    {"ok":true,"data":{"open_count":5,"draft_count":1,"ready_count":1}}
+    """
+
+    static let mrTicketContext = """
+    {"ok":true,"data":{"number":3,"repo":"G-Eskayo/marvin-mobile","key":"G-Eskayo/marvin-mobile#3","title":"MR Review tab","description":"Implement the MR Review tab: list pipeline PRs with their status, show the ticket behind each, and approve or deny behind Face ID.","status":"active","stage":"executing"}}
+    """
+
+    static let mrApproveResult = """
+    {"ok":true,"data":{"pr_number":315,"merged":true,"message":"PR merged successfully"}}
+    """
+
+    static let mrDenyResult = """
+    {"ok":true,"data":{"pr_number":309,"recorded":true,"message":"Denial recorded and feedback sent"}}
     """
 }
 

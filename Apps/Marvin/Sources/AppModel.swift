@@ -2,8 +2,8 @@ import Foundation
 import MarvinCore
 import Observation
 
-/// App-wide state: which backend to talk to, whether it's reachable, the Thread, and Health
-/// (shared because the Health tab's badge shows its red count).
+/// App-wide state: which backend to talk to, whether it's reachable, the Thread, Health,
+/// and MR Review (shared because the MR tab's badge shows its open count).
 @MainActor @Observable
 final class AppModel {
     static let defaultBackend = "http://100.80.189.85:7880"   // MacBook for the first demo; Mac Mini later (ADR 0042)
@@ -22,11 +22,40 @@ final class AppModel {
     private(set) var threadError: String?
     private(set) var health: HealthStatus?
     private(set) var healthError: String?
+    private(set) var mrReviewStatus: MRReviewStatus?
+    private(set) var mrError: String?
 
     private let demoClient = DemoBackend.client()
+    private(set) var biometricGate: BiometricGate
+    private(set) var mrActions: MRReviewActions?
 
     init() {
         backendURLString = UserDefaults.standard.string(forKey: Self.backendKey) ?? Self.defaultBackend
+        biometricGate = LAContextBiometricGate()
+
+        // Convert launch arguments to UserDefaults for demo mode navigation
+        if isDemo {
+            let args = ProcessInfo.processInfo.arguments
+            var i = 0
+            while i < args.count {
+                let arg = args[i]
+                switch arg {
+                case "-tab", "-demoPrompt", "-demoMRDetail":
+                    if i + 1 < args.count {
+                        let key = String(arg.dropFirst())  // Remove leading "-"
+                        UserDefaults.standard.set(args[i + 1], forKey: key)
+                        i += 2
+                    } else {
+                        i += 1
+                    }
+                case "-demoDenySheet":
+                    UserDefaults.standard.set(true, forKey: "demoDenySheet")
+                    i += 1
+                default:
+                    i += 1
+                }
+            }
+        }
     }
 
     var client: BackendClient? {
@@ -36,6 +65,7 @@ final class AppModel {
 
     var isSending: Bool { streaming != nil }
     var redCheckCount: Int { health?.count(.red) ?? 0 }
+    var mrOpenCount: Int { mrReviewStatus?.openCount ?? 0 }
 
     func refreshConnection() async {
         guard let client else { connection.record(.unreachable, at: .now); return }
@@ -46,7 +76,10 @@ final class AppModel {
     func monitorConnection() async {
         while !Task.isCancelled {
             await refreshConnection()
-            if connection.status == .online, health == nil { await loadHealth() }
+            if connection.status == .online {
+                if health == nil { await loadHealth() }
+                if mrReviewStatus == nil { await loadMRReviewStatus() }
+            }
             try? await Task.sleep(for: .seconds(15))
         }
     }
@@ -58,6 +91,17 @@ final class AppModel {
             healthError = nil
         } catch {
             healthError = error.localizedDescription
+        }
+    }
+
+    func loadMRReviewStatus() async {
+        guard let client else { return }
+        if mrActions == nil { mrActions = MRReviewActions(client: client, biometricGate: biometricGate) }
+        do {
+            mrReviewStatus = try await client.mrReviewStatus()
+            mrError = nil
+        } catch {
+            mrError = error.localizedDescription
         }
     }
 

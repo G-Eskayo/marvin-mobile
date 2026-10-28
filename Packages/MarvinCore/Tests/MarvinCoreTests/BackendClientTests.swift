@@ -149,4 +149,89 @@ final class StubProtocol: URLProtocol, @unchecked Sendable {
         let body = try JSONSerialization.jsonObject(with: StubProtocol.lastBody ?? Data()) as? [String: String]
         #expect(body == ["message": "Good morning"])
     }
+
+    // Tests 6–8: MR endpoint methods
+    @Test func mrListDecodesArray() async throws {
+        StubProtocol.handler = { _ in (200, Data("""
+            {"ok":true,"data":[
+             {"number":315,"repo":"G-Eskayo/marvin","key":"marvin#315","title":"MR Review","status":"readyToMerge",
+              "ticket":{"number":3,"repo":"G-Eskayo/marvin-mobile","key":"m-mobile#3","title":"Tab"},
+              "author":"user","created_at":"2026-10-23T14:22:11Z","url":"https://github.com/..."}
+            ]}
+            """.utf8)) }
+        let prs = try await client.mrList()
+        #expect(prs.count == 1)
+        #expect(prs[0].number == 315)
+    }
+
+    @Test func mrReviewStatusDecodesOpenCount() async throws {
+        StubProtocol.handler = { _ in (200, Data(#"{"ok":true,"data":{"open_count":5,"draft_count":1,"ready_count":2}}"#.utf8)) }
+        let status = try await client.mrReviewStatus()
+        #expect(status.openCount == 5)
+    }
+
+    @Test func mrTicketContextFetchesById() async throws {
+        StubProtocol.handler = { req in
+            #expect(req.url?.path == "/mr/ticket-context/315")
+            return (200, Data(#"{"ok":true,"data":{"number":3,"repo":"G-Eskayo/marvin-mobile","key":"m-mobile#3","title":"MR Review tab","description":"","status":"active","stage":"executing"}}"#.utf8))
+        }
+        let ctx = try await client.mrTicketContext(prNumber: 315)
+        #expect(ctx.number == 3)
+    }
+
+    // Tests 9–13: MR side-effecting methods
+    @Test func mrApprovePostsAndDecodes() async throws {
+        StubProtocol.handler = { req in
+            #expect(req.httpMethod == "POST")
+            #expect(req.url?.path == "/mr/approve")
+            if let bodyData = req.httpBody,
+               let json = try? JSONSerialization.jsonObject(with: bodyData) as? [String: Any] {
+                #expect(json["pr_number"] as? Int == 315)
+            }
+            return (200, Data(#"{"ok":true,"data":{"pr_number":315,"merged":true,"message":"merged"}}"#.utf8))
+        }
+        let result = try await client.mrApprove(prNumber: 315)
+        #expect(result.merged == true)
+    }
+
+    @Test func mrDenyPostsActionAndDecodes() async throws {
+        StubProtocol.handler = { req in
+            #expect(req.httpMethod == "POST")
+            #expect(req.url?.path == "/mr/deny")
+            return (200, Data(#"{"ok":true,"data":{"pr_number":309,"recorded":true,"message":"recorded"}}"#.utf8))
+        }
+        let action = MRDenyAction(prNumber: 309, reasons: [.checksNeeded], comment: "feedback")
+        let result = try await client.mrDeny(action)
+        #expect(result.recorded == true)
+    }
+
+    @Test func mrDenyEncodesReasonsArray() async throws {
+        StubProtocol.handler = { req in
+            if let bodyData = req.httpBody,
+               let json = try? JSONSerialization.jsonObject(with: bodyData) as? [String: Any],
+               let reasons = json["reasons"] as? [String] {
+                #expect(reasons.count == 2)
+                #expect(reasons.contains("checks_needed") == true)
+                #expect(reasons.contains("rebasing") == true)
+            }
+            return (200, Data(#"{"ok":true,"data":{"pr_number":309,"recorded":true,"message":"ok"}}"#.utf8))
+        }
+        let action = MRDenyAction(prNumber: 309, reasons: [.checksNeeded, .rebasing], comment: "work needed")
+        _ = try await client.mrDeny(action)
+    }
+
+    @Test func approveFailsOnNot2xx() async throws {
+        StubProtocol.handler = { _ in (500, Data(#"{"ok":false,"error":"server error"}"#.utf8)) }
+        await #expect(throws: BackendError.server("server error")) {
+            try await client.mrApprove(prNumber: 315)
+        }
+    }
+
+    @Test func denyFailsOn403() async throws {
+        StubProtocol.handler = { _ in (403, Data()) }
+        let action = MRDenyAction(prNumber: 309, reasons: [], comment: "")
+        await #expect(throws: BackendError.notAllowlisted) {
+            try await client.mrDeny(action)
+        }
+    }
 }
