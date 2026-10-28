@@ -63,3 +63,29 @@ struct ComingSoonView: View {
         }
     }
 }
+
+private struct Page<Content: View>: View {
+    let title: String
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text(title).font(.title2.weight(.semibold))
+                Spacer()
+            }
+            .padding()
+            .background(Theme.background)
+            Divider().overlay(Theme.border)
+            content()
+        }
+        .background(Theme.background)
+    }
+}
+
+private struct SectionLabel: View {
+    let text: String
+    var body: some View {
+        Text(text).font(.headline).foregroundStyle(Theme.secondary)
+    }
+}

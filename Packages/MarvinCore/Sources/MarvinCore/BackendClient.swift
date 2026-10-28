@@ -45,6 +45,11 @@ public struct BackendClient: Sendable {
     public func activity() async throws -> [ActivityItem] { try await get("activity") }
     public func health() async throws -> HealthStatus { try await get("health") }
     public func boards() async throws -> [Board] { try await get("boards") }
+    public func boardDetail(repo: String) async throws -> BoardDetail { try await get("board/\(repo)") }
+    public func timeline(repo: String, number: Int) async throws -> [TimelineEvent] { try await get("timeline/\(repo)/\(number)") }
+    public func relations(repo: String, number: Int) async throws -> TicketRelations { try await get("relations/\(repo)/\(number)") }
+    public func activityOverview() async throws -> ProjectOverview { try await get("activity/overview") }
+    public func queue() async throws -> QueueStatus { try await get("queue") }
 
     /// The Thread, oldest first (the backend pages newest first).
     public func thread(limit: Int = 50) async throws -> [ThreadMessage] {
@@ -79,6 +84,11 @@ public struct BackendClient: Sendable {
         }
     }
 
+    /// `POST /reply/<repo>/<number>`: submit a reply to a ticket (gated by Face ID).
+    public func replyToTicket(repo: String, number: Int, body: String) async throws -> TicketReplyResult {
+        try await post("reply/\(repo)/\(number)", ["body": body])
+    }
+
     // MARK: - Plumbing
 
     private struct Envelope<T: Decodable>: Decodable {
@@ -93,6 +103,25 @@ public struct BackendClient: Sendable {
         var url = baseURL.appending(path: path)
         if !query.isEmpty { url.append(queryItems: query) }
         let (data, response) = try await session.data(from: url)
+        guard let http = response as? HTTPURLResponse else { throw BackendError.badResponse }
+        if http.statusCode == 403 { throw BackendError.notAllowlisted }
+        if !(200..<300).contains(http.statusCode) {
+            let message = (try? JSONDecoder().decode(ErrorEnvelope.self, from: data))?.error
+            throw BackendError.server(message ?? "HTTP \(http.statusCode)")
+        }
+        let envelope = try JSONDecoder().decode(Envelope<T>.self, from: data)
+        guard envelope.ok, let value = envelope.data else {
+            throw BackendError.server(envelope.error ?? "empty response")
+        }
+        return value
+    }
+
+    private func post<T: Decodable>(_ path: String, _ payload: [String: String]) async throws -> T {
+        var request = URLRequest(url: baseURL.appending(path: path))
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONEncoder().encode(payload)
+        let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse else { throw BackendError.badResponse }
         if http.statusCode == 403 { throw BackendError.notAllowlisted }
         if !(200..<300).contains(http.statusCode) {

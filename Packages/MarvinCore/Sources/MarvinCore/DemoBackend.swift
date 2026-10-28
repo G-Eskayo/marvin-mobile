@@ -20,8 +20,16 @@ public enum DemoBackend {
         case (_, "/activity"): (200, activity)
         case (_, "/health"): (200, health)
         case (_, "/boards"): (200, boards)
+        case (_, "/board/G-Eskayo/marvin"): (200, boardDetail)
+        case (_, "/board/G-Eskayo/clarity-captions"): (200, boardDetailCC)
+        case (_, "/timeline/G-Eskayo/marvin/272"): (200, timeline)
+        case (_, "/relations/G-Eskayo/marvin/272"): (200, relations)
+        case (_, "/activity/overview"): (200, activityOverview)
+        case (_, "/queue"): (200, queue)
         case (_, "/thread"): (200, thread)
         case ("POST", "/chat"): (200, chat)
+        case ("POST", "/reply/G-Eskayo/marvin/272"): (200, replySuccess)
+        case ("POST", "/reply/G-Eskayo/marvin/199"): (403, #"{"ok":false,"error":"not allowlisted"}"#)
         default: (404, #"{"ok":false,"error":"not in demo data"}"#)
         }
     }
@@ -72,6 +80,68 @@ public enum DemoBackend {
     {"type":"text","text":"Want me to open #199 on the Activity tab?"}
     {"type":"result","text":"","sessionId":"demo","isError":false}
 
+    """
+
+    static let boardDetail = """
+    {"ok":true,"data":{"repo":"G-Eskayo/marvin","name":"marvin","columns":[
+    {"id":"todo","name":"To Do","cards":[
+    {"id":"c1","number":272,"title":"Mobile backend: board endpoints","repo":"G-Eskayo/marvin","assignee":"Gil"}
+    ]},
+    {"id":"doing","name":"Doing","cards":[
+    {"id":"c2","number":261,"title":"Map publishes itself to production","repo":"G-Eskayo/marvin","assignee":"MARVIN"}
+    ]},
+    {"id":"done","name":"Done","cards":[]}
+    ],"other_projects":[
+    {"id":"proj-1","repo":"G-Eskayo/clarity-captions","name":"clarity-captions","card_count":3}
+    ]}}
+    """
+
+    static let boardDetailCC = """
+    {"ok":true,"data":{"repo":"G-Eskayo/clarity-captions","name":"clarity-captions","columns":[
+    {"id":"todo","name":"To Do","cards":[
+    {"id":"c1","number":25,"title":"Latency baseline and 10% budget","repo":"G-Eskayo/clarity-captions","assignee":"Gil"}
+    ]},
+    {"id":"doing","name":"In Progress","cards":[]},
+    {"id":"done","name":"Done","cards":[]}
+    ],"other_projects":[
+    {"id":"proj-1","repo":"G-Eskayo/marvin","name":"marvin","card_count":8}
+    ]}}
+    """
+
+    static let timeline = """
+    {"ok":true,"data":[
+    {"id":"evt-1","type":"comment","actor":"Gil","body":"Looks solid. When does the Face ID gate go live?","created_at":"2026-10-08T18:03:00Z"},
+    {"id":"evt-2","type":"state-change","actor":"MARVIN","body":"currentStage: todo → doing","created_at":"2026-10-08T17:57:46Z"},
+    {"id":"evt-3","type":"opened","actor":"Gil","body":null,"created_at":"2026-10-08T17:57:30Z"}
+    ]}
+    """
+
+    static let relations = """
+    {"ok":true,"data":{"repo":"G-Eskayo/marvin","number":272,"related_prs":[
+    {"id":"pr-1","number":1234,"title":"Implement board detail and timeline read endpoints","repo":"G-Eskayo/marvin-backend","state":"open"}
+    ],"related_docs":[
+    {"id":"doc-1","path":"docs/adr/0041-mobile-endpoints.md","label":"ADR 0041: Mobile Backend Shape"},
+    {"id":"doc-2","path":"docs/adr/0039-mobile-auth.md","label":"ADR 0039: Mobile Face ID Gate"}
+    ]}}
+    """
+
+    static let activityOverview = """
+    {"ok":true,"data":{"projects":[
+    {"id":"proj-1","repo":"G-Eskayo/marvin","needs_you":true,"waiting_count":2},
+    {"id":"proj-2","repo":"G-Eskayo/clarity-captions","needs_you":true,"waiting_count":1}
+    ]}}
+    """
+
+    static let queue = """
+    {"ok":true,"data":{"entries":[
+    {"id":"q1","number":272,"repo":"G-Eskayo/marvin","title":"Mobile backend: board endpoints","stage":"executing"},
+    {"id":"q2","number":25,"repo":"G-Eskayo/clarity-captions","title":"Latency baseline and 10% budget","stage":"verifying"},
+    {"id":"q3","number":261,"repo":"G-Eskayo/marvin","title":"Map publishes itself to production","stage":"waiting"}
+    ],"total_waiting":5}}
+    """
+
+    static let replySuccess = """
+    {"ok":true,"data":{"success":true,"reply_id":"reply-abc123","message":"Reply posted successfully"}}
     """
 }
 

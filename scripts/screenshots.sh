@@ -33,7 +33,9 @@ shot 1-thread 4 -tab marvin
 shot 2-thread-typing 2 -tab marvin -demoPrompt "What's going on today?"
 shot 3-thread-reply 6 -tab marvin -demoPrompt "What's going on today?"
 shot 4-activity 4 -tab activity
-shot 5-health 4 -tab health
-shot 6-mr-review 3 -tab review
-shot 7-docs 3 -tab docs
+shot 5-board-detail 4 -tab activity -demoBoard "G-Eskayo/marvin"
+shot 6-ticket-detail 4 -tab activity -demoTicket "G-Eskayo/marvin#272"
+shot 7-health 4 -tab health
+shot 8-mr-review 3 -tab review
+shot 9-docs 3 -tab docs
 xcrun simctl terminate "$UDID" "$BUNDLE" >/dev/null 2>&1 || true

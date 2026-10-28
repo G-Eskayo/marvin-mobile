@@ -87,3 +87,167 @@ public struct ThreadMessage: Decodable, Equatable, Identifiable, Sendable {
         self.ts = ts
     }
 }
+
+/// `GET /board/<repo>`: one project's board with columns and cards.
+public struct BoardDetail: Decodable, Equatable, Sendable {
+    public let repo: String
+    public let name: String?
+    public let columns: [BoardColumn]?
+    public let otherProjects: [BoardOtherProject]?
+
+    enum CodingKeys: String, CodingKey {
+        case repo, name, columns
+        case otherProjects = "other_projects"
+    }
+}
+
+public struct BoardColumn: Decodable, Equatable, Identifiable, Sendable {
+    public let id: String
+    public let name: String
+    public let cards: [BoardCard]?
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, cards
+    }
+}
+
+public struct BoardCard: Decodable, Equatable, Identifiable, Sendable {
+    public let id: String
+    public let number: Int
+    public let title: String?
+    public let repo: String?
+    public let assignee: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, number, title, repo, assignee
+    }
+}
+
+public struct BoardOtherProject: Decodable, Equatable, Identifiable, Sendable {
+    public let id: String
+    public let repo: String
+    public let name: String?
+    public let cardCount: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case id, repo, name
+        case cardCount = "card_count"
+    }
+}
+
+/// `GET /timeline/<repo>/<number>`: one ticket's event timeline, newest first.
+public struct TimelineEvent: Decodable, Equatable, Identifiable, Sendable {
+    public let id: String
+    public let type: String
+    public let actor: String?
+    public let body: String?
+    public let createdAt: String?
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = (try container.decodeIfPresent(String.self, forKey: .id)) ?? UUID().uuidString
+        type = (try container.decodeIfPresent(String.self, forKey: .type)) ?? "unknown"
+        actor = try container.decodeIfPresent(String.self, forKey: .actor)
+        body = try container.decodeIfPresent(String.self, forKey: .body)
+        createdAt = try container.decodeIfPresent(String.self, forKey: .createdAt)
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id, type, actor, body
+        case createdAt = "created_at"
+    }
+}
+
+/// `GET /relations/<repo>/<number>`: related PRs and docs for one ticket.
+public struct TicketRelations: Decodable, Equatable, Sendable {
+    public let repo: String
+    public let number: Int
+    public let relatedPRs: [RelatedRef]?
+    public let relatedDocs: [RelatedDoc]?
+
+    enum CodingKeys: String, CodingKey {
+        case repo, number
+        case relatedPRs = "related_prs"
+        case relatedDocs = "related_docs"
+    }
+}
+
+public struct RelatedRef: Decodable, Equatable, Identifiable, Sendable {
+    public let id: String
+    public let number: Int
+    public let title: String?
+    public let repo: String?
+    public let state: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, number, title, repo, state
+    }
+}
+
+public struct RelatedDoc: Decodable, Equatable, Identifiable, Sendable {
+    public let id: String
+    public let path: String
+    public let label: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, path, label
+    }
+}
+
+/// `GET /activity/overview`: summary of projects and their queue states.
+public struct ProjectOverview: Decodable, Equatable, Sendable {
+    public let projects: [ProjectOverviewItem]?
+
+    enum CodingKeys: String, CodingKey {
+        case projects
+    }
+}
+
+public struct ProjectOverviewItem: Decodable, Equatable, Identifiable, Sendable {
+    public let id: String
+    public let repo: String
+    public let needsYou: Bool?
+    public let waitingCount: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case id, repo
+        case needsYou = "needs_you"
+        case waitingCount = "waiting_count"
+    }
+}
+
+/// `GET /queue`: the dispatch queue's current state.
+public struct QueueStatus: Decodable, Equatable, Sendable {
+    public let entries: [QueueEntry]?
+    public let totalWaiting: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case entries
+        case totalWaiting = "total_waiting"
+    }
+}
+
+public struct QueueEntry: Decodable, Equatable, Identifiable, Sendable {
+    public let id: String
+    public let number: Int
+    public let repo: String?
+    public let title: String?
+    public let stage: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, number, repo, title, stage
+    }
+}
+
+/// Result of a successful ticket reply.
+public struct TicketReplyResult: Decodable, Equatable, Sendable {
+    public let success: Bool
+    public let replyId: String?
+    public let message: String?
+
+    enum CodingKeys: String, CodingKey {
+        case success
+        case replyId = "reply_id"
+        case message
+    }
+}

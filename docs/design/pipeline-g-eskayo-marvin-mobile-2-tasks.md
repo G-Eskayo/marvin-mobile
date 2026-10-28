@@ -1,0 +1,13 @@
+1. MarvinCore `Models.swift`: add `BoardCard`, `BoardColumn`, `BoardOtherProject`, `BoardDetail`, `TimelineEvent`, `TicketRelations` (+ `RelatedRef`, `RelatedDoc`), `ProjectOverview`, `QueueEntry`, `QueueStatus`, `TicketReplyResult` — all tolerant-decoding like `ActivityItem`.
+2. MarvinCore `BackendClient.swift`: add `boardDetail(repo:)`, `timeline(repo:number:)`, `relations(repo:number:)`, `activityOverview()`, `queue()` (all via `get`), and a new `post<T>()` helper + `replyToTicket(repo:number:body:)`.
+3. MarvinCore: new `BiometricAuthenticator.swift` — protocol, `LAContextAuthenticator`, `TicketReplyGate` actor, `TicketActionError`.
+4. Write tests 1–23 above (red first), confirming each fails for the right reason before implementation.
+5. Implement `Models`/`BackendClient`/`TicketReplyGate` to pass the MarvinCore tests; run `swift test --package-path Packages/MarvinCore` green.
+6. `DemoBackend.swift`: add fixtures for the five new read routes plus the write route's success/403 cases; wire a `DemoAuthenticator` always-succeeds path for `-demo`.
+7. `AppModel.swift`: add a `biometricAuthenticator` (real `LAContextAuthenticator` normally, `DemoAuthenticator` under `-demo`) and a `reply(to ticket:, body:)` method delegating to `TicketReplyGate`; preserve the draft on failure.
+8. New `BoardView.swift` (Apps/Marvin/Sources): project detail — columns per the chosen `board-nav` option, tag filter chips, archived toggle, "needs you" badges sourced from `/activity/overview`.
+9. New `TicketDetailView.swift`: body, timeline list, related PRs (`Link` out to GitHub) and related docs (inert list rows), and — only when the ticket is flagged waiting-on-owner — a reply composer wired through `TicketReplyGate` with the Face ID prompt.
+10. Extend `ActivityView.swift`: tapping a project chip opens `BoardView`; tapping a card opens `TicketDetailView`; add a small "Next up" section sourced from `/queue`.
+11. `Info.plist`: add `NSFaceIDUsageDescription`.
+12. `scripts/screenshots.sh`: add shot lines for the board view, a normal ticket detail, a waiting-on-owner ticket detail with the reply composer, and (via a new `-demoTicket <key>` launch arg, mirroring `-demoPrompt`) a post-reply confirmation state.
+13. `xcodebuild` app-build verify; capture screenshots into `docs/screenshots/issue-2/`; write the "You want X → tap Y → you see Z" use cases for the closing comment, stating plainly that the real Face ID prompt itself is untestable from this pipeline (known trap) and was verified only via the demo auto-success path.

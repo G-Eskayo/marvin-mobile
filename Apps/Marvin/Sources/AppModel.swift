@@ -22,11 +22,19 @@ final class AppModel {
     private(set) var threadError: String?
     private(set) var health: HealthStatus?
     private(set) var healthError: String?
+    private(set) var ticketReplyError: String?
+    private(set) var ticketReplyInProgress = false
 
     private let demoClient = DemoBackend.client()
+    private let biometricAuthenticator: BiometricAuthenticator
 
     init() {
         backendURLString = UserDefaults.standard.string(forKey: Self.backendKey) ?? Self.defaultBackend
+        if isDemo {
+            biometricAuthenticator = DemoAuthenticator()
+        } else {
+            biometricAuthenticator = LAContextAuthenticator()
+        }
     }
 
     var client: BackendClient? {
@@ -88,5 +96,20 @@ final class AppModel {
             messages.append(ThreadMessage(id: "local-\(UUID())", source: "chat", role: .assistant, text: text))
         }
         streaming = nil
+    }
+
+    func reply(to ticket: (repo: String, number: Int), body: String) async {
+        guard let client, !ticketReplyInProgress else { return }
+        ticketReplyInProgress = true
+        ticketReplyError = nil
+        do {
+            _ = try await biometricAuthenticator.authenticateAndReply(repo: ticket.repo, number: ticket.number, body: body, using: client)
+            ticketReplyError = nil
+        } catch let error as TicketActionError {
+            ticketReplyError = error.localizedDescription
+        } catch {
+            ticketReplyError = error.localizedDescription
+        }
+        ticketReplyInProgress = false
     }
 }
