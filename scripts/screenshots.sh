@@ -35,5 +35,7 @@ shot 3-thread-reply 6 -tab marvin -demoPrompt "What's going on today?"
 shot 4-activity 4 -tab activity
 shot 5-health 4 -tab health
 shot 6-mr-review 3 -tab review
-shot 7-docs 3 -tab docs
+shot 8-docs-repos 3 -tab docs
+shot 9-docs-tree 3 -tab docs -demoDocsId __master__
+shot 10-docs-file 3 -tab docs -demoDocsId __master__ -demoDocsPath CONTEXT.md
 xcrun simctl terminate "$UDID" "$BUNDLE" >/dev/null 2>&1 || true

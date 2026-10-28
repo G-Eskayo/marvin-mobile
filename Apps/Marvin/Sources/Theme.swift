@@ -90,31 +90,48 @@ struct StatusDot: View {
 struct Page<Content: View>: View {
     let title: String
     @ViewBuilder let content: Content
+    let path: Binding<NavigationPath>?
     @State private var showingSettings = false
 
+    init(title: String, path: Binding<NavigationPath>? = nil, @ViewBuilder content: @escaping () -> Content) {
+        self.title = title
+        self.path = path
+        self.content = content()
+    }
+
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                ConnectionBanner()
-                content.frame(maxHeight: .infinity)
+        if let path {
+            NavigationStack(path: path) {
+                pageContent()
             }
-            .background(Theme.background)
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    Text(title.uppercased())
-                        .font(.subheadline.weight(.semibold))
-                        .tracking(1.2)
-                        .foregroundStyle(Theme.secondary)
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button { showingSettings = true } label: { Image(systemName: "gearshape") }
-                        .tint(Theme.secondary)
-                        .accessibilityLabel("Settings")
-                }
+        } else {
+            NavigationStack {
+                pageContent()
             }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(Theme.background, for: .navigationBar)
-            .sheet(isPresented: $showingSettings) { SettingsView() }
         }
+    }
+
+    private func pageContent() -> some View {
+        VStack(spacing: 0) {
+            ConnectionBanner()
+            content.frame(maxHeight: .infinity)
+        }
+        .background(Theme.background)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                Text(title.uppercased())
+                    .font(.subheadline.weight(.semibold))
+                    .tracking(1.2)
+                    .foregroundStyle(Theme.secondary)
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button { showingSettings = true } label: { Image(systemName: "gearshape") }
+                    .tint(Theme.secondary)
+                    .accessibilityLabel("Settings")
+            }
+        }
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(Theme.background, for: .navigationBar)
+        .sheet(isPresented: $showingSettings) { SettingsView() }
     }
 }

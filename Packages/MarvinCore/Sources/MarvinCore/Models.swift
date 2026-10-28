@@ -87,3 +87,42 @@ public struct ThreadMessage: Decodable, Equatable, Identifiable, Sendable {
         self.ts = ts
     }
 }
+
+/// One docs repository from `GET /docs/repos`.
+public struct DocsRepo: Decodable, Equatable, Identifiable, Sendable {
+    public let id: String
+    public let name: String?
+    public let description: String?
+    public let kind: String?
+    public let status: String?
+    public let local: Bool?
+}
+
+/// Response from `GET /docs/repos`: list of available repos with generation timestamp.
+public struct DocsRepos: Decodable, Equatable, Sendable {
+    public let generatedAt: String?
+    public let repos: [DocsRepo]
+
+    enum CodingKeys: String, CodingKey {
+        case generatedAt = "generated_at"
+        case repos
+    }
+}
+
+/// One file or directory entry in a docs tree.
+public struct DocsTreeEntry: Decodable, Equatable, Identifiable, Sendable {
+    public let path: String
+    public let type: String
+    public let name: String
+
+    public var id: String { path }
+}
+
+/// Response from `GET /docs/tree/:id`: the file structure of a docs repo.
+public struct DocsTree: Decodable, Equatable, Sendable {
+    public let entries: [DocsTreeEntry]
+
+    enum CodingKeys: String, CodingKey {
+        case entries = "tree"
+    }
+}

@@ -149,4 +149,53 @@ final class StubProtocol: URLProtocol, @unchecked Sendable {
         let body = try JSONSerialization.jsonObject(with: StubProtocol.lastBody ?? Data()) as? [String: String]
         #expect(body == ["message": "Good morning"])
     }
+
+    // Test 1: docsRepos decodes multiple repos with generatedAt
+    @Test func docsReposDecodesSuccessfully() async throws {
+        StubProtocol.handler = { _ in (200, Data(#"{"ok":true,"data":{"generated_at":"2026-10-25T12:00:00Z","repos":[{"id":"__master__","name":"Master","description":"Central docs"},{"id":"marvin","name":"MARVIN","description":"MARVIN docs"}]}}"#.utf8)) }
+        let repos = try await client.docsRepos()
+        #expect(repos.generatedAt == "2026-10-25T12:00:00Z")
+        #expect(repos.repos.count == 2)
+        #expect(repos.repos[0].id == "__master__")
+        #expect(repos.repos[1].name == "MARVIN")
+        #expect(StubProtocol.lastRequest?.url?.path == "/docs/repos")
+    }
+
+    // Test 2: docsTree decodes file structure with entries
+    @Test func docsTreeDecodesSuccessfully() async throws {
+        StubProtocol.handler = { req in
+            let path = req.url?.path ?? ""
+            let components = URLComponents(url: req.url ?? URL(fileURLWithPath: ""), resolvingAgainstBaseURL: false)
+            let query = components?.queryItems ?? []
+            let hasIdParam = query.contains { $0.name == "id" && $0.value == "__master__" }
+            #expect(path == "/docs/tree")
+            #expect(hasIdParam)
+            return (200, Data(#"{"ok":true,"data":{"tree":[{"path":"CONTEXT.md","type":"file","name":"CONTEXT.md"},{"path":"adr","type":"dir","name":"adr"}]}}"#.utf8))
+        }
+        let tree = try await client.docsTree(id: "__master__")
+        #expect(tree.entries.count == 2)
+        #expect(tree.entries[0].path == "CONTEXT.md")
+        #expect(tree.entries[0].type == "file")
+        #expect(tree.entries[1].type == "dir")
+    }
+
+    // Test 3: docsContent fetches file content as plain string
+    @Test func docsContentDecodesSuccessfully() async throws {
+        StubProtocol.handler = { req in
+            let path = req.url?.path ?? ""
+            let components = URLComponents(url: req.url ?? URL(fileURLWithPath: ""), resolvingAgainstBaseURL: false)
+            let query = components?.queryItems ?? []
+            let hasIdParam = query.contains { $0.name == "id" && $0.value == "__master__" }
+            let hasPathParam = query.contains { $0.name == "path" && $0.value == "CONTEXT.md" }
+            #expect(path == "/docs/content")
+            #expect(hasIdParam)
+            #expect(hasPathParam)
+            let json = """
+            {"ok":true,"data":"# Central Documentation\\n\\nWelcome to the docs."}
+            """
+            return (200, Data(json.utf8))
+        }
+        let content = try await client.docsContent(id: "__master__", path: "CONTEXT.md")
+        #expect(content == "# Central Documentation\n\nWelcome to the docs.")
+    }
 }

@@ -23,10 +23,41 @@ final class AppModel {
     private(set) var health: HealthStatus?
     private(set) var healthError: String?
 
+    /// Transient launch arguments for demo mode (never persisted).
+    var demoTab: String?
+    var demoPrompt: String?
+    var demoDocsId: String?
+    var demoDocsPath: String?
+
     private let demoClient = DemoBackend.client()
 
     init() {
         backendURLString = UserDefaults.standard.string(forKey: Self.backendKey) ?? Self.defaultBackend
+        if isDemo {
+            parseCommandLineArguments()
+        }
+    }
+
+    /// Parses demo-mode command line arguments like `-tab`, `-demoPrompt`, `-demoDocsId`, etc.
+    /// and stores them transiently in this instance (never persisted to disk).
+    private func parseCommandLineArguments() {
+        let args = ProcessInfo.processInfo.arguments
+        var i = 0
+        while i < args.count {
+            let arg = args[i]
+            switch arg {
+            case "-tab":
+                if i + 1 < args.count { demoTab = args[i + 1]; i += 2 } else { i += 1 }
+            case "-demoPrompt":
+                if i + 1 < args.count { demoPrompt = args[i + 1]; i += 2 } else { i += 1 }
+            case "-demoDocsId":
+                if i + 1 < args.count { demoDocsId = args[i + 1]; i += 2 } else { i += 1 }
+            case "-demoDocsPath":
+                if i + 1 < args.count { demoDocsPath = args[i + 1]; i += 2 } else { i += 1 }
+            default:
+                i += 1
+            }
+        }
     }
 
     var client: BackendClient? {

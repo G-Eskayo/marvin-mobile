@@ -22,6 +22,9 @@ public enum DemoBackend {
         case (_, "/boards"): (200, boards)
         case (_, "/thread"): (200, thread)
         case ("POST", "/chat"): (200, chat)
+        case (_, "/docs/repos"): (200, docsRepos)
+        case (_, "/docs/tree"): (200, docsTree)
+        case (_, "/docs/content"): (200, docsContent)
         default: (404, #"{"ok":false,"error":"not in demo data"}"#)
         }
     }
@@ -72,6 +75,26 @@ public enum DemoBackend {
     {"type":"text","text":"Want me to open #199 on the Activity tab?"}
     {"type":"result","text":"","sessionId":"demo","isError":false}
 
+    """
+
+    static let docsRepos = """
+    {"ok":true,"data":{"generated_at":"2026-10-25T12:00:00Z","repos":[
+     {"id":"__master__","name":"Master Documentation","description":"Central MARVIN docs"},
+     {"id":"marvin","name":"MARVIN","description":"MARVIN project docs"},
+     {"id":"clarity-captions","name":"Clarity Captions","description":"Clarity Captions app docs"}
+    ]}}
+    """
+
+    static let docsTree = """
+    {"ok":true,"data":{"tree":[
+     {"path":"CONTEXT.md","type":"file","name":"CONTEXT.md"},
+     {"path":"adr","type":"dir","name":"adr"},
+     {"path":"README.md","type":"file","name":"README.md"}
+    ]}}
+    """
+
+    static let docsContent = """
+    {"ok":true,"data":"# Master Documentation\\n\\nWelcome to MARVIN's central documentation repository.\\n\\n## Quick Links\\n\\n- [Architecture Decision Records](./adr/)\\n- [Project Context](./CONTEXT.md)\\n\\n## Projects\\n\\nThe system includes:\\n\\n- **MARVIN**: The orchestration and monitoring platform\\n- **Clarity Captions**: Offline mobile captioning system"}
     """
 }
 
